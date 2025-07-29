@@ -9,7 +9,7 @@ class DogGameApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       home: Scaffold(
-        backgroundColor: Colors.green, // <---- Endre bakgrunnsfarge her
+        backgroundColor: Colors.green,
         body: SafeArea(child: DogBoard()),
       ),
     );
@@ -18,10 +18,10 @@ class DogGameApp extends StatelessWidget {
 
 class Field {
   final Offset relPos;
-  final String type; // 'normal', 'immunity', 'goal'
-  final int? goalNumber;
+  final String type; // 'normal', 'immunity', 'start'
+  final int? startNumber;
   final int? player;
-  Field(this.relPos, this.type, {this.goalNumber, this.player});
+  Field(this.relPos, this.type, {this.startNumber, this.player});
 }
 
 class DogBoard extends StatefulWidget {
@@ -34,8 +34,8 @@ class _DogBoardState extends State<DogBoard> {
   late List<Field> fields;
   int currentPos = 0;
 
-  // <--- FARGER per spiller. Du kan bytte disse!
-  final Map<int, Color> playerGoalColor = {
+  // FARGER per spiller for startfelter
+  final Map<int, Color> playerStartColor = {
     1: Colors.red,
     2: Colors.blue,
     3: Colors.yellow,
@@ -50,7 +50,6 @@ class _DogBoardState extends State<DogBoard> {
 
   List<Field> _manualFields() {
     final coords = [
-      // ... (samme 64 koordinater som før, fjernet her for korthet)
       Offset(0.10, 0.10), Offset(0.15, 0.10), Offset(0.20, 0.10), Offset(0.25, 0.15),
       Offset(0.30, 0.20), Offset(0.35, 0.25), Offset(0.40, 0.30), Offset(0.45, 0.35),
       Offset(0.50, 0.35), Offset(0.55, 0.35), Offset(0.60, 0.30), Offset(0.65, 0.25),
@@ -69,28 +68,28 @@ class _DogBoardState extends State<DogBoard> {
       Offset(0.20, 0.30), Offset(0.15, 0.25), Offset(0.10, 0.20), Offset(0.10, 0.15),
     ];
 
-    // --- BO/MÅL-FELT, 4 per spiller i hvert hjørne ---
-    final List<Field> goalFields = [
+    // Startfelt, 4 per spiller
+    final List<Field> startFields = [
       // ØVERST VENSTRE (spiller 1)
-      Field(Offset(0.04, 0.08), 'goal', goalNumber: 1, player: 1),
-      Field(Offset(0.04, 0.14), 'goal', goalNumber: 2, player: 1),
-      Field(Offset(0.04, 0.20), 'goal', goalNumber: 3, player: 1),
-      Field(Offset(0.04, 0.26), 'goal', goalNumber: 4, player: 1),
+      Field(Offset(0.04, 0.08), 'start', startNumber: 1, player: 1),
+      Field(Offset(0.04, 0.14), 'start', startNumber: 2, player: 1),
+      Field(Offset(0.04, 0.20), 'start', startNumber: 3, player: 1),
+      Field(Offset(0.04, 0.26), 'start', startNumber: 4, player: 1),
       // ØVERST HØYRE (spiller 2)
-      Field(Offset(0.92, 0.04), 'goal', goalNumber: 1, player: 2),
-      Field(Offset(0.86, 0.04), 'goal', goalNumber: 2, player: 2),
-      Field(Offset(0.80, 0.04), 'goal', goalNumber: 3, player: 2),
-      Field(Offset(0.74, 0.04), 'goal', goalNumber: 4, player: 2),
+      Field(Offset(0.92, 0.04), 'start', startNumber: 1, player: 2),
+      Field(Offset(0.86, 0.04), 'start', startNumber: 2, player: 2),
+      Field(Offset(0.80, 0.04), 'start', startNumber: 3, player: 2),
+      Field(Offset(0.74, 0.04), 'start', startNumber: 4, player: 2),
       // NEDERST HØYRE (spiller 3)
-      Field(Offset(0.96, 0.92), 'goal', goalNumber: 1, player: 3),
-      Field(Offset(0.96, 0.86), 'goal', goalNumber: 2, player: 3),
-      Field(Offset(0.96, 0.80), 'goal', goalNumber: 3, player: 3),
-      Field(Offset(0.96, 0.74), 'goal', goalNumber: 4, player: 3),
+      Field(Offset(0.96, 0.92), 'start', startNumber: 1, player: 3),
+      Field(Offset(0.96, 0.86), 'start', startNumber: 2, player: 3),
+      Field(Offset(0.96, 0.80), 'start', startNumber: 3, player: 3),
+      Field(Offset(0.96, 0.74), 'start', startNumber: 4, player: 3),
       // NEDERST VENSTRE (spiller 4)
-      Field(Offset(0.08, 0.96), 'goal', goalNumber: 1, player: 4),
-      Field(Offset(0.14, 0.96), 'goal', goalNumber: 2, player: 4),
-      Field(Offset(0.20, 0.96), 'goal', goalNumber: 3, player: 4),
-      Field(Offset(0.26, 0.96), 'goal', goalNumber: 4, player: 4),
+      Field(Offset(0.08, 0.96), 'start', startNumber: 1, player: 4),
+      Field(Offset(0.14, 0.96), 'start', startNumber: 2, player: 4),
+      Field(Offset(0.20, 0.96), 'start', startNumber: 3, player: 4),
+      Field(Offset(0.26, 0.96), 'start', startNumber: 4, player: 4),
     ];
 
     return [
@@ -99,7 +98,7 @@ class _DogBoardState extends State<DogBoard> {
           coords[i],
           ((i == 0) || (i == 16) || (i == 32) || (i == 48)) ? 'immunity' : 'normal',
         ),
-      ...goalFields,
+      ...startFields,
     ];
   }
 
@@ -113,15 +112,14 @@ class _DogBoardState extends State<DogBoard> {
           (constraints.maxHeight - boardSide) / 2,
         );
 
-        // <--- JUSTER STØRRELSE på felter, bo-felt, immunfelt, brikke her!
         double baseFieldSize = boardSide * 0.05;
         double immunityMultiplier = 1.2;
-        double goalMultiplier = 1.13;
+        double startMultiplier = 1.13;
         double pieceSize = baseFieldSize * 0.8;
 
         return Stack(
           children: [
-            // Brettet (stor hvit firkant)
+            // Brettet
             Positioned(
               left: boardOrigin.dx,
               top: boardOrigin.dy,
@@ -129,7 +127,7 @@ class _DogBoardState extends State<DogBoard> {
                 width: boardSide,
                 height: boardSide,
                 decoration: BoxDecoration(
-                  color: Colors.white, // <--- Endre farge på spillebrett her
+                  color: Colors.white,
                   border: Border.all(color: Colors.black, width: 4),
                   borderRadius: BorderRadius.circular(32),
                 ),
@@ -137,7 +135,6 @@ class _DogBoardState extends State<DogBoard> {
             ),
             // FELTER
             ...fields.asMap().entries.map((entry) {
-              final i = entry.key;
               final f = entry.value;
               final pos = Offset(
                 boardOrigin.dx + f.relPos.dx * boardSide,
@@ -145,25 +142,24 @@ class _DogBoardState extends State<DogBoard> {
               );
               double size = baseFieldSize;
               if (f.type == 'immunity') size *= immunityMultiplier;
-              if (f.type == 'goal') size *= goalMultiplier;
+              if (f.type == 'start') size *= startMultiplier;
 
               Color color;
               if (f.type == 'immunity') {
-                color = Colors.orange; // <--- Endre farge på immunfelt
-              } else if (f.type == 'goal') {
-                color = playerGoalColor[f.player] ?? Colors.green;
+                color = Colors.orange;
+              } else if (f.type == 'start') {
+                color = playerStartColor[f.player] ?? Colors.green;
               } else {
-                color = Colors.black; // <--- Endre farge på vanlige felter
+                color = Colors.black;
               }
 
-              // Bytt ut sirkelform med oktagon hvis det er mål-felt!
               return Positioned(
                 left: pos.dx - size / 2,
                 top: pos.dy - size / 2,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    if (f.type == 'goal')
+                    if (f.type == 'start')
                       CustomPaint(
                         size: Size(size, size),
                         painter: OctagonPainter(color),
@@ -178,9 +174,9 @@ class _DogBoardState extends State<DogBoard> {
                           border: Border.all(color: Colors.white, width: size * 0.14),
                         ),
                       ),
-                    if (f.type == 'goal')
+                    if (f.type == 'start')
                       Text(
-                        '${f.goalNumber}',
+                        '${f.startNumber}',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -192,7 +188,7 @@ class _DogBoardState extends State<DogBoard> {
                 ),
               );
             }),
-            // BRIKKE (bare én blå for testing)
+            // BRIKKE (test)
             Builder(builder: (context) {
               final pos = Offset(
                 boardOrigin.dx + fields[currentPos].relPos.dx * boardSide,
@@ -205,7 +201,7 @@ class _DogBoardState extends State<DogBoard> {
                   width: pieceSize,
                   height: pieceSize,
                   decoration: BoxDecoration(
-                    color: Colors.blue, // <--- Endre farge på testbrikke
+                    color: Colors.blue,
                     shape: BoxShape.circle,
                     boxShadow: const [
                       BoxShadow(
@@ -238,7 +234,7 @@ class _DogBoardState extends State<DogBoard> {
   }
 }
 
-// === 🟩 CUSTOM PAINTER FOR OKTAGON (ÅTTEKANT) 🟩 ===
+// Oktagontegner (samme som før)
 class OctagonPainter extends CustomPainter {
   final Color fillColor;
   OctagonPainter(this.fillColor);
