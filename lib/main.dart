@@ -72,25 +72,25 @@ class _DogBoardState extends State<DogBoard> {
     // --- BO/MÅL-FELT, 4 per spiller i hvert hjørne ---
     final List<Field> goalFields = [
       // ØVERST VENSTRE (spiller 1)
-      Field(Offset(0.04, 0.04), 'goal', goalNumber: 1, player: 1),
-      Field(Offset(0.04, 0.09), 'goal', goalNumber: 2, player: 1),
-      Field(Offset(0.09, 0.04), 'goal', goalNumber: 3, player: 1),
-      Field(Offset(0.09, 0.09), 'goal', goalNumber: 4, player: 1),
+      Field(Offset(0.04, 0.08), 'goal', goalNumber: 1, player: 1),
+      Field(Offset(0.04, 0.14), 'goal', goalNumber: 2, player: 1),
+      Field(Offset(0.04, 0.20), 'goal', goalNumber: 3, player: 1),
+      Field(Offset(0.04, 0.26), 'goal', goalNumber: 4, player: 1),
       // ØVERST HØYRE (spiller 2)
-      Field(Offset(0.96, 0.04), 'goal', goalNumber: 1, player: 2),
-      Field(Offset(0.96, 0.09), 'goal', goalNumber: 2, player: 2),
-      Field(Offset(0.91, 0.04), 'goal', goalNumber: 3, player: 2),
-      Field(Offset(0.91, 0.09), 'goal', goalNumber: 4, player: 2),
+      Field(Offset(0.92, 0.04), 'goal', goalNumber: 1, player: 2),
+      Field(Offset(0.86, 0.04), 'goal', goalNumber: 2, player: 2),
+      Field(Offset(0.80, 0.04), 'goal', goalNumber: 3, player: 2),
+      Field(Offset(0.74, 0.04), 'goal', goalNumber: 4, player: 2),
       // NEDERST HØYRE (spiller 3)
-      Field(Offset(0.96, 0.96), 'goal', goalNumber: 1, player: 3),
-      Field(Offset(0.96, 0.91), 'goal', goalNumber: 2, player: 3),
-      Field(Offset(0.91, 0.96), 'goal', goalNumber: 3, player: 3),
-      Field(Offset(0.91, 0.91), 'goal', goalNumber: 4, player: 3),
+      Field(Offset(0.96, 0.92), 'goal', goalNumber: 1, player: 3),
+      Field(Offset(0.96, 0.86), 'goal', goalNumber: 2, player: 3),
+      Field(Offset(0.96, 0.80), 'goal', goalNumber: 3, player: 3),
+      Field(Offset(0.96, 0.74), 'goal', goalNumber: 4, player: 3),
       // NEDERST VENSTRE (spiller 4)
-      Field(Offset(0.04, 0.96), 'goal', goalNumber: 1, player: 4),
-      Field(Offset(0.04, 0.91), 'goal', goalNumber: 2, player: 4),
-      Field(Offset(0.09, 0.96), 'goal', goalNumber: 3, player: 4),
-      Field(Offset(0.09, 0.91), 'goal', goalNumber: 4, player: 4),
+      Field(Offset(0.08, 0.96), 'goal', goalNumber: 1, player: 4),
+      Field(Offset(0.14, 0.96), 'goal', goalNumber: 2, player: 4),
+      Field(Offset(0.20, 0.96), 'goal', goalNumber: 3, player: 4),
+      Field(Offset(0.26, 0.96), 'goal', goalNumber: 4, player: 4),
     ];
 
     return [
