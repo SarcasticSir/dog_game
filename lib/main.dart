@@ -44,17 +44,17 @@ class _DogBoardState extends State<DogBoard> {
   Offset(0.10, 0.10),    // 1 (hjørne top venstre)
   Offset(0.15, 0.10),    // 2
   Offset(0.20, 0.10),    // 3
-  Offset(0.25, 0.10),    // 4
-  Offset(0.30, 0.10),    // 5
-  Offset(0.35, 0.10),    // 6
-  Offset(0.40, 0.10),    // 7
-  Offset(0.45, 0.10),    // 8
-  Offset(0.50, 0.10),    // 9
-  Offset(0.55, 0.10),    // 10
-  Offset(0.60, 0.10),    // 11
-  Offset(0.65, 0.10),    // 12
-  Offset(0.70, 0.10),    // 13
-  Offset(0.75, 0.10),    // 14
+  Offset(0.25, 0.15),    // 4
+  Offset(0.30, 0.20),    // 5
+  Offset(0.35, 0.25),    // 6
+  Offset(0.40, 0.30),    // 7
+  Offset(0.45, 0.35),    // 8
+  Offset(0.50, 0.35),    // 9 midten
+  Offset(0.55, 0.35),    // 10
+  Offset(0.60, 0.30),    // 11
+  Offset(0.65, 0.25),    // 12
+  Offset(0.70, 0.20),    // 13
+  Offset(0.75, 0.15),    // 14
   Offset(0.80, 0.10),    // 15
   Offset(0.85, 0.10),    // 16
 
@@ -62,17 +62,17 @@ class _DogBoardState extends State<DogBoard> {
   Offset(0.90, 0.10),    // 17 (hjørne top høyre)
   Offset(0.90, 0.15),    // 18
   Offset(0.90, 0.20),    // 19
-  Offset(0.90, 0.25),    // 20
-  Offset(0.90, 0.30),    // 21
-  Offset(0.90, 0.35),    // 22
-  Offset(0.90, 0.40),    // 23
-  Offset(0.90, 0.45),    // 24
-  Offset(0.90, 0.50),    // 25
-  Offset(0.90, 0.55),    // 26
-  Offset(0.90, 0.60),    // 27
-  Offset(0.90, 0.65),    // 28
-  Offset(0.90, 0.70),    // 29
-  Offset(0.90, 0.75),    // 30
+  Offset(0.85, 0.25),    // 20
+  Offset(0.80, 0.30),    // 21
+  Offset(0.75, 0.35),    // 22
+  Offset(0.70, 0.40),    // 23
+  Offset(0.65, 0.45),    // 24
+  Offset(0.65, 0.50),    // 25 midten
+  Offset(0.65, 0.55),    // 26
+  Offset(0.70, 0.60),    // 27
+  Offset(0.75, 0.65),    // 28
+  Offset(0.80, 0.70),    // 29
+  Offset(0.85, 0.75),    // 30
   Offset(0.90, 0.80),    // 31
   Offset(0.90, 0.85),    // 32
 
@@ -80,17 +80,17 @@ class _DogBoardState extends State<DogBoard> {
   Offset(0.90, 0.90),    // 33 (Hjørne bunn høyre)
   Offset(0.85, 0.90),    // 34
   Offset(0.80, 0.90),    // 35
-  Offset(0.75, 0.90),    // 36
-  Offset(0.70, 0.90),    // 37
-  Offset(0.65, 0.90),    // 38
-  Offset(0.60, 0.90),    // 39
-  Offset(0.55, 0.90),    // 40
-  Offset(0.50, 0.90),    // 41
-  Offset(0.45, 0.90),    // 42
-  Offset(0.40, 0.90),    // 43
-  Offset(0.35, 0.90),    // 44
-  Offset(0.30, 0.90),    // 45
-  Offset(0.25, 0.90),    // 46
+  Offset(0.75, 0.85),    // 36
+  Offset(0.70, 0.80),    // 37
+  Offset(0.65, 0.75),    // 38
+  Offset(0.60, 0.70),    // 39
+  Offset(0.55, 0.65),    // 40
+  Offset(0.50, 0.65),    // 41 midten
+  Offset(0.45, 0.65),    // 42
+  Offset(0.40, 0.70),    // 43
+  Offset(0.35, 0.75),    // 44
+  Offset(0.30, 0.80),    // 45
+  Offset(0.25, 0.85),    // 46
   Offset(0.20, 0.90),    // 47
   Offset(0.15, 0.90),    // 48
 
@@ -98,17 +98,17 @@ class _DogBoardState extends State<DogBoard> {
   Offset(0.10, 0.90),    // 49 (hjørne bunn venstre)
   Offset(0.10, 0.85),    // 50
   Offset(0.10, 0.80),    // 51
-  Offset(0.10, 0.75),    // 52
-  Offset(0.10, 0.70),    // 53
-  Offset(0.10, 0.65),    // 54
-  Offset(0.10, 0.60),    // 55
-  Offset(0.10, 0.55),    // 56
-  Offset(0.10, 0.50),    // 57
-  Offset(0.10, 0.45),    // 58
-  Offset(0.10, 0.40),    // 59
-  Offset(0.10, 0.35),    // 60
-  Offset(0.10, 0.30),    // 61
-  Offset(0.10, 0.25),    // 62
+  Offset(0.15, 0.75),    // 52
+  Offset(0.20, 0.70),    // 53
+  Offset(0.25, 0.65),    // 54
+  Offset(0.30, 0.60),    // 55
+  Offset(0.35, 0.55),    // 56
+  Offset(0.35, 0.50),    // 57 midten
+  Offset(0.35, 0.45),    // 58
+  Offset(0.30, 0.40),    // 59
+  Offset(0.25, 0.35),    // 60
+  Offset(0.20, 0.30),    // 61
+  Offset(0.15, 0.25),    // 62
   Offset(0.10, 0.20),    // 63
   Offset(0.10, 0.15),    // 64
 ];
