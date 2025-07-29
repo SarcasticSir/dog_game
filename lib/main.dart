@@ -40,71 +40,80 @@ class _DogBoardState extends State<DogBoard> {
   List<Field> _manualFields() {
     return List.generate(64, (i) {
       final coords = [
-        Offset(0.10, 0.10), // 1
-        Offset(0.18, 0.10), // 2
-        Offset(0.26, 0.10), // 3
-        Offset(0.34, 0.10), // 4
-        Offset(0.42, 0.10), // 5
-        Offset(0.50, 0.10), // 6
-        Offset(0.58, 0.10), // 7
-        Offset(0.66, 0.10), // 8
-        Offset(0.74, 0.10), // 9
-        Offset(0.82, 0.10), // 10
-        Offset(0.90, 0.10), // 11
-        Offset(0.90, 0.18), // 12
-        Offset(0.90, 0.26), // 13
-        Offset(0.90, 0.34), // 14
-        Offset(0.90, 0.42), // 15
-        Offset(0.90, 0.50), // 16
-        Offset(0.90, 0.58), // 17 (IMMU)
-        Offset(0.90, 0.66), // 18
-        Offset(0.90, 0.74), // 19
-        Offset(0.90, 0.82), // 20
-        Offset(0.90, 0.90), // 21
-        Offset(0.82, 0.90), // 22
-        Offset(0.74, 0.90), // 23
-        Offset(0.66, 0.90), // 24
-        Offset(0.58, 0.90), // 25
-        Offset(0.50, 0.90), // 26
-        Offset(0.42, 0.90), // 27
-        Offset(0.34, 0.90), // 28
-        Offset(0.26, 0.90), // 29
-        Offset(0.18, 0.90), // 30
-        Offset(0.10, 0.90), // 31
-        Offset(0.10, 0.82), // 32
-        Offset(0.10, 0.74), // 33 (IMMU)
-        Offset(0.10, 0.66), // 34
-        Offset(0.10, 0.58), // 35
-        Offset(0.10, 0.50), // 36
-        Offset(0.10, 0.42), // 37
-        Offset(0.10, 0.34), // 38
-        Offset(0.10, 0.26), // 39
-        Offset(0.10, 0.18), // 40
-        Offset(0.18, 0.18), // 41
-        Offset(0.26, 0.18), // 42
-        Offset(0.34, 0.18), // 43
-        Offset(0.42, 0.18), // 44
-        Offset(0.50, 0.18), // 45
-        Offset(0.58, 0.18), // 46
-        Offset(0.66, 0.18), // 47
-        Offset(0.74, 0.18), // 48
-        Offset(0.82, 0.18), // 49 (IMMU)
-        Offset(0.82, 0.26), // 50
-        Offset(0.82, 0.34), // 51
-        Offset(0.82, 0.42), // 52
-        Offset(0.82, 0.50), // 53
-        Offset(0.82, 0.58), // 54
-        Offset(0.82, 0.66), // 55
-        Offset(0.82, 0.74), // 56
-        Offset(0.82, 0.82), // 57
-        Offset(0.74, 0.82), // 58
-        Offset(0.66, 0.82), // 59
-        Offset(0.58, 0.82), // 60
-        Offset(0.50, 0.82), // 61
-        Offset(0.42, 0.82), // 62
-        Offset(0.34, 0.82), // 63
-        Offset(0.26, 0.82), // 64
-      ];
+  // Topp (fra venstre mot høyre)
+  Offset(0.10, 0.10),    // 1 (hjørne top venstre)
+  Offset(0.15, 0.10),    // 2
+  Offset(0.20, 0.10),    // 3
+  Offset(0.25, 0.10),    // 4
+  Offset(0.30, 0.10),    // 5
+  Offset(0.35, 0.10),    // 6
+  Offset(0.40, 0.10),    // 7
+  Offset(0.45, 0.10),    // 8
+  Offset(0.50, 0.10),    // 9
+  Offset(0.55, 0.10),    // 10
+  Offset(0.60, 0.10),    // 11
+  Offset(0.65, 0.10),    // 12
+  Offset(0.70, 0.10),    // 13
+  Offset(0.75, 0.10),    // 14
+  Offset(0.80, 0.10),    // 15
+  Offset(0.85, 0.10),    // 16
+
+  // Høyre (topp til bunn)
+  Offset(0.90, 0.10),    // 17 (hjørne top høyre)
+  Offset(0.90, 0.15),    // 18
+  Offset(0.90, 0.20),    // 19
+  Offset(0.90, 0.25),    // 20
+  Offset(0.90, 0.30),    // 21
+  Offset(0.90, 0.35),    // 22
+  Offset(0.90, 0.40),    // 23
+  Offset(0.90, 0.45),    // 24
+  Offset(0.90, 0.50),    // 25
+  Offset(0.90, 0.55),    // 26
+  Offset(0.90, 0.60),    // 27
+  Offset(0.90, 0.65),    // 28
+  Offset(0.90, 0.70),    // 29
+  Offset(0.90, 0.75),    // 30
+  Offset(0.90, 0.80),    // 31
+  Offset(0.90, 0.85),    // 32
+
+  // Bunn (høyre mot venstre)
+  Offset(0.90, 0.90),    // 33 (Hjørne bunn høyre)
+  Offset(0.85, 0.90),    // 34
+  Offset(0.80, 0.90),    // 35
+  Offset(0.75, 0.90),    // 36
+  Offset(0.70, 0.90),    // 37
+  Offset(0.65, 0.90),    // 38
+  Offset(0.60, 0.90),    // 39
+  Offset(0.55, 0.90),    // 40
+  Offset(0.50, 0.90),    // 41
+  Offset(0.45, 0.90),    // 42
+  Offset(0.40, 0.90),    // 43
+  Offset(0.35, 0.90),    // 44
+  Offset(0.30, 0.90),    // 45
+  Offset(0.25, 0.90),    // 46
+  Offset(0.20, 0.90),    // 47
+  Offset(0.15, 0.90),    // 48
+
+  // Venstre (Bunn til topp)
+  Offset(0.10, 0.90),    // 49 (hjørne bunn venstre)
+  Offset(0.10, 0.85),    // 50
+  Offset(0.10, 0.80),    // 51
+  Offset(0.10, 0.75),    // 52
+  Offset(0.10, 0.70),    // 53
+  Offset(0.10, 0.65),    // 54
+  Offset(0.10, 0.60),    // 55
+  Offset(0.10, 0.55),    // 56
+  Offset(0.10, 0.50),    // 57
+  Offset(0.10, 0.45),    // 58
+  Offset(0.10, 0.40),    // 59
+  Offset(0.10, 0.35),    // 60
+  Offset(0.10, 0.30),    // 61
+  Offset(0.10, 0.25),    // 62
+  Offset(0.10, 0.20),    // 63
+  Offset(0.10, 0.15),    // 64
+];
+
+
       String type = ((i == 0) || (i == 16) || (i == 32) || (i == 48)) ? 'immunity' : 'normal';
       return Field(coords[i], type);
     });
@@ -120,7 +129,7 @@ class _DogBoardState extends State<DogBoard> {
           (constraints.maxHeight - boardSide) / 2,
         );
 
-        double baseFieldSize = boardSide * 0.055; // 5.5% av brettet
+        double baseFieldSize = boardSide * 0.05; // 5.5% av brettet
         double immunityMultiplier = 1.2; // Immunfelt litt større
         double pieceSize = baseFieldSize * 0.8; // Størrelse på brikken
 
