@@ -351,7 +351,7 @@ class _DogBoardState extends State<DogBoard> {
                     currentPos = (currentPos + 1) % 64;
                   });
                 },
-                child: const Text("Flytt brikke"),
+                child: const Text("Flytt brikk"),
               ),
             ),
           ],
