@@ -135,7 +135,7 @@ class _DogBoardState extends State<DogBoard> {
         double pieceSize = baseFieldSize * 0.8;
         final double boxWidth = boardSide * 0.23;
         final double boxHeight = boxWidth * 0.60;
-        //final double offset = boardSide * 0.07;
+        //final double offset = boardSide * 0.07; fjerner denne da den ikke trengs.
 
         // Hvilke spillere skal vises hvor? (rotasjon for håndboksene)
         List<int> boxOrder = [
