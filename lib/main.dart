@@ -18,10 +18,11 @@ class DogGameApp extends StatelessWidget {
 
 class Field {
   final Offset relPos;
-  final String type; // 'normal', 'immunity', 'start'
+  final String type; // 'normal', 'immunity', 'start', 'goal'
   final int? startNumber;
   final int? player;
-  Field(this.relPos, this.type, {this.startNumber, this.player});
+  final int? goalNumber;
+  Field(this.relPos, this.type, {this.startNumber, this.player, this.goalNumber});
 }
 
 class DogBoard extends StatefulWidget {
@@ -92,13 +93,44 @@ class _DogBoardState extends State<DogBoard> {
       Field(Offset(0.26, 0.96), 'start', startNumber: 4, player: 4),
     ];
 
+
+    // Målområde/bo-felter, 4 per spiller
+    final List<Field> goalFields = [
+      //Spiller 1
+      Field(Offset(0.17, 0.17), 'goal', goalNumber: 1, player: 1),
+      Field(Offset(0.21, 0.21), 'goal', goalNumber: 2, player: 1),
+      Field(Offset(0.25, 0.25), 'goal', goalNumber: 3, player: 1),
+      Field(Offset(0.29, 0.29), 'goal', goalNumber: 4, player: 1),
+      // Spiller 2
+      Field(Offset(0.83, 0.17), 'goal', goalNumber: 1, player: 2),
+      Field(Offset(0.79, 0.21), 'goal', goalNumber: 2, player: 2),
+      Field(Offset(0.75, 0.25), 'goal', goalNumber: 3, player: 2),
+      Field(Offset(0.71, 0.29), 'goal', goalNumber: 4, player: 2),
+      // Spiller 3  
+      Field(Offset(0.83, 0.83), 'goal', goalNumber: 1, player: 3),
+      Field(Offset(0.79, 0.79), 'goal', goalNumber: 2, player: 3),
+      Field(Offset(0.75, 0.75), 'goal', goalNumber: 3, player: 3),
+      Field(Offset(0.71, 0.71), 'goal', goalNumber: 4, player: 3),
+      // Spiller 4
+      Field(Offset(0.17, 0.83), 'goal', goalNumber: 1, player: 4),
+      Field(Offset(0.21, 0.79), 'goal', goalNumber: 2, player: 4),
+      Field(Offset(0.25, 0.75), 'goal', goalNumber: 3, player: 4),
+      Field(Offset(0.29, 0.71), 'goal', goalNumber: 4, player: 4),
+
+
+    ];
+
     return [
       for (int i = 0; i < coords.length; i++)
         Field(
           coords[i],
           ((i == 0) || (i == 16) || (i == 32) || (i == 48)) ? 'immunity' : 'normal',
-        ),
+          player: (i == 0) ? 1 :
+                  (i == 16) ? 2 :
+                  (i == 32) ? 3 :
+                  (i == 48) ? 4 : null,        ),
       ...startFields,
+      ...goalFields,
     ];
   }
 
@@ -145,10 +177,12 @@ class _DogBoardState extends State<DogBoard> {
               if (f.type == 'start') size *= startMultiplier;
 
               Color color;
-              if (f.type == 'immunity') {
-                color = Colors.orange;
-              } else if (f.type == 'start') {
+              if (f.type == 'immunity' || f.type == 'goal' || f.type == 'start') {
                 color = playerStartColor[f.player] ?? Colors.green;
+           //   } else if (f.type == 'start') {
+             //   color = playerStartColor[f.player] ?? Colors.green;
+              //} else if (f.type == 'goal') {
+              //  color = Colors.deepOrange;
               } else {
                 color = Colors.black;
               }
@@ -174,7 +208,28 @@ class _DogBoardState extends State<DogBoard> {
                           border: Border.all(color: Colors.white, width: size * 0.14),
                         ),
                       ),
-                    if (f.type == 'start')
+
+                    
+                      // Og så tegner du de med en DiamondPainter:
+                    if (f.type == 'goal')
+                      CustomPaint(
+                        size: Size(size, size),
+                        painter: DiamondPainter(color),
+                      ),   
+
+                      //Legger til tall
+                    if (f.type == 'goal')
+                      Text(
+                        '${f.goalNumber}',
+                        style: TextStyle(fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontSize: size * 0.6,
+                        shadows: [Shadow(blurRadius: 2, color: Colors.black)],
+                        )
+                      )
+
+
+                    else if (f.type == 'start')
                       Text(
                         '${f.startNumber}',
                         style: TextStyle(
@@ -201,7 +256,7 @@ class _DogBoardState extends State<DogBoard> {
                   width: pieceSize,
                   height: pieceSize,
                   decoration: BoxDecoration(
-                    color: Colors.blue,
+                    color: const Color.fromARGB(255, 3, 224, 195),
                     shape: BoxShape.circle,
                     boxShadow: const [
                       BoxShadow(
@@ -264,6 +319,31 @@ class OctagonPainter extends CustomPainter {
     canvas.drawPath(octagon, fillPaint);
   }
 
+
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
+
+class DiamondPainter extends CustomPainter {
+  final Color fillColor;
+  DiamondPainter(this.fillColor);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Path diamond = Path()
+      ..moveTo(size.width / 2, 0)
+      ..lineTo(size.width, size.height / 2)
+      ..lineTo(size.width / 2, size.height)
+      ..lineTo(0, size.height / 2)
+      ..close();
+    final Paint fillPaint = Paint()
+      ..color = fillColor
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(diamond, fillPaint);
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
+}
+
+
