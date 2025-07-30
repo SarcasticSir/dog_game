@@ -15,3 +15,4 @@ class DogGameApp extends StatelessWidget {
     );
   }
 }
+//Legger inn kommentar her bare for å se om deet finer
