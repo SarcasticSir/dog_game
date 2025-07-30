@@ -1,3 +1,4 @@
+// Nyeste DOG-brett med riktig roterende perspektiv og håndbokser
 import 'package:flutter/material.dart';
 import 'dart:math';
 
@@ -35,13 +36,30 @@ class _DogBoardState extends State<DogBoard> {
   late List<Field> fields;
   int currentPos = 0;
 
-  // FARGER per spiller for startfelter
+  /// Endre denne for å se hvordan brettet tilpasses!
+  final int myPlayerNumber = 1;
+
   final Map<int, Color> playerStartColor = {
     1: Colors.red,
     2: Colors.blue,
     3: Colors.yellow,
     4: Colors.purple,
   };
+
+  double getBoardRotation(int player) {
+    switch (player) {
+      case 1:
+        return 0.0;
+      case 2:
+        return pi / 2;
+      case 3:
+        return pi;
+      case 4:
+        return 3 * pi / 2;
+      default:
+        return 0.0;
+    }
+  }
 
   @override
   void initState() {
@@ -68,67 +86,57 @@ class _DogBoardState extends State<DogBoard> {
       Offset(0.35, 0.50), Offset(0.35, 0.45), Offset(0.30, 0.40), Offset(0.25, 0.35),
       Offset(0.20, 0.30), Offset(0.15, 0.25), Offset(0.10, 0.20), Offset(0.10, 0.15),
     ];
-
-    // Startfelt, 4 per spiller
     final List<Field> startFields = [
-      // ØVERST VENSTRE (spiller 1)
       Field(Offset(0.04, 0.08), 'start', startNumber: 1, player: 1),
       Field(Offset(0.04, 0.14), 'start', startNumber: 2, player: 1),
       Field(Offset(0.04, 0.20), 'start', startNumber: 3, player: 1),
       Field(Offset(0.04, 0.26), 'start', startNumber: 4, player: 1),
-      // ØVERST HØYRE (spiller 2)
       Field(Offset(0.92, 0.04), 'start', startNumber: 1, player: 2),
       Field(Offset(0.86, 0.04), 'start', startNumber: 2, player: 2),
       Field(Offset(0.80, 0.04), 'start', startNumber: 3, player: 2),
       Field(Offset(0.74, 0.04), 'start', startNumber: 4, player: 2),
-      // NEDERST HØYRE (spiller 3)
       Field(Offset(0.96, 0.92), 'start', startNumber: 1, player: 3),
       Field(Offset(0.96, 0.86), 'start', startNumber: 2, player: 3),
       Field(Offset(0.96, 0.80), 'start', startNumber: 3, player: 3),
       Field(Offset(0.96, 0.74), 'start', startNumber: 4, player: 3),
-      // NEDERST VENSTRE (spiller 4)
       Field(Offset(0.08, 0.96), 'start', startNumber: 1, player: 4),
       Field(Offset(0.14, 0.96), 'start', startNumber: 2, player: 4),
       Field(Offset(0.20, 0.96), 'start', startNumber: 3, player: 4),
       Field(Offset(0.26, 0.96), 'start', startNumber: 4, player: 4),
     ];
-
-
-    // Målområde/bo-felter, 4 per spiller
     final List<Field> goalFields = [
-      //Spiller 1
       Field(Offset(0.17, 0.17), 'goal', goalNumber: 1, player: 1),
       Field(Offset(0.21, 0.21), 'goal', goalNumber: 2, player: 1),
       Field(Offset(0.25, 0.25), 'goal', goalNumber: 3, player: 1),
       Field(Offset(0.29, 0.29), 'goal', goalNumber: 4, player: 1),
-      // Spiller 2
       Field(Offset(0.83, 0.17), 'goal', goalNumber: 1, player: 2),
       Field(Offset(0.79, 0.21), 'goal', goalNumber: 2, player: 2),
       Field(Offset(0.75, 0.25), 'goal', goalNumber: 3, player: 2),
       Field(Offset(0.71, 0.29), 'goal', goalNumber: 4, player: 2),
-      // Spiller 3  
       Field(Offset(0.83, 0.83), 'goal', goalNumber: 1, player: 3),
       Field(Offset(0.79, 0.79), 'goal', goalNumber: 2, player: 3),
       Field(Offset(0.75, 0.75), 'goal', goalNumber: 3, player: 3),
       Field(Offset(0.71, 0.71), 'goal', goalNumber: 4, player: 3),
-      // Spiller 4
       Field(Offset(0.17, 0.83), 'goal', goalNumber: 1, player: 4),
       Field(Offset(0.21, 0.79), 'goal', goalNumber: 2, player: 4),
       Field(Offset(0.25, 0.75), 'goal', goalNumber: 3, player: 4),
       Field(Offset(0.29, 0.71), 'goal', goalNumber: 4, player: 4),
-
-
     ];
-
     return [
       for (int i = 0; i < coords.length; i++)
         Field(
           coords[i],
           ((i == 0) || (i == 16) || (i == 32) || (i == 48)) ? 'immunity' : 'normal',
-          player: (i == 0) ? 1 :
-                  (i == 16) ? 2 :
-                  (i == 32) ? 3 :
-                  (i == 48) ? 4 : null,        ),
+          player: (i == 0)
+              ? 1
+              : (i == 16)
+                  ? 2
+                  : (i == 32)
+                      ? 3
+                      : (i == 48)
+                          ? 4
+                          : null,
+        ),
       ...startFields,
       ...goalFields,
     ];
@@ -138,138 +146,198 @@ class _DogBoardState extends State<DogBoard> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double boardSide = constraints.biggest.shortestSide * 0.9;
+        final double boardSide = constraints.biggest.shortestSide * 0.85;
         final Offset boardOrigin = Offset(
           (constraints.maxWidth - boardSide) / 2,
           (constraints.maxHeight - boardSide) / 2,
         );
-
         double baseFieldSize = boardSide * 0.05;
         double immunityMultiplier = 1.2;
         double startMultiplier = 1.13;
         double pieceSize = baseFieldSize * 0.8;
+        final double boxWidth = boardSide * 0.23;
+        final double boxHeight = boxWidth * 0.60;
+        final double offset = boardSide * 0.07;
+
+        // Hvilke spillere skal vises hvor? (rotasjon for håndboksene)
+        List<int> boxOrder = [
+          myPlayerNumber, // BUNN (meg)
+          ((myPlayerNumber) % 4) + 1, // HØYRE
+          ((myPlayerNumber + 1) % 4) + 1, // TOPP
+          ((myPlayerNumber + 2) % 4) + 1, // VENSTRE
+        ];
 
         return Stack(
           children: [
-            // Brettet
-            Positioned(
-              left: boardOrigin.dx,
-              top: boardOrigin.dy,
-              child: Container(
-                width: boardSide,
-                height: boardSide,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Colors.black, width: 4),
-                  borderRadius: BorderRadius.circular(32),
-                ),
+            // Rotér hele brettet ift. meg
+            Transform.rotate(
+              angle: getBoardRotation(myPlayerNumber),
+              child: Stack(
+                children: [
+                  // Brettet
+                  Positioned(
+                    left: boardOrigin.dx,
+                    top: boardOrigin.dy,
+                    child: Container(
+                      width: boardSide,
+                      height: boardSide,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: Colors.black, width: 4),
+                        borderRadius: BorderRadius.circular(32),
+                      ),
+                    ),
+                  ),
+                  // FELTER
+                  ...fields.asMap().entries.map((entry) {
+                    final f = entry.value;
+                    final pos = Offset(
+                      boardOrigin.dx + f.relPos.dx * boardSide,
+                      boardOrigin.dy + f.relPos.dy * boardSide,
+                    );
+                    double size = baseFieldSize;
+                    if (f.type == 'immunity') size *= immunityMultiplier;
+                    if (f.type == 'start') size *= startMultiplier;
+
+                    Color color;
+                    if (f.type == 'immunity' || f.type == 'goal' || f.type == 'start') {
+                      color = playerStartColor[f.player] ?? Colors.green;
+                    } else {
+                      color = Colors.black;
+                    }
+
+                    // Tekst skal ALLTID stå rett vei ift. spilleren
+                    Widget? label;
+                    if (f.type == 'goal') {
+                      label = Transform.rotate(
+                        angle: -getBoardRotation(myPlayerNumber),
+                        child: Text(
+                          '${f.goalNumber}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            fontSize: size * 0.6,
+                            shadows: [Shadow(blurRadius: 2, color: Colors.black)],
+                          ),
+                        ),
+                      );
+                    } else if (f.type == 'start') {
+                      label = Transform.rotate(
+                        angle: -getBoardRotation(myPlayerNumber),
+                        child: Text(
+                          '${f.startNumber}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            fontSize: size * 0.6,
+                            shadows: [Shadow(blurRadius: 2, color: Colors.black)],
+                          ),
+                        ),
+                      );
+                    }
+
+                    return Positioned(
+                      left: pos.dx - size / 2,
+                      top: pos.dy - size / 2,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          if (f.type == 'start')
+                            CustomPaint(
+                              size: Size(size, size),
+                              painter: OctagonPainter(color),
+                            )
+                          else
+                            Container(
+                              width: size,
+                              height: size,
+                              decoration: BoxDecoration(
+                                color: color,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: size * 0.14),
+                              ),
+                            ),
+                          if (f.type == 'goal')
+                            CustomPaint(
+                              size: Size(size, size),
+                              painter: DiamondPainter(color),
+                            ),
+                          if (label != null) label,
+                        ],
+                      ),
+                    );
+                  }),
+                  // BRIKKE (test)
+                  Builder(builder: (context) {
+                    final pos = Offset(
+                      boardOrigin.dx + fields[currentPos].relPos.dx * boardSide,
+                      boardOrigin.dy + fields[currentPos].relPos.dy * boardSide,
+                    );
+                    return Positioned(
+                      left: pos.dx - pieceSize / 2,
+                      top: pos.dy - pieceSize / 2,
+                      child: Container(
+                        width: pieceSize,
+                        height: pieceSize,
+                        decoration: BoxDecoration(
+                          color: const Color.fromARGB(255, 3, 224, 195),
+                          shape: BoxShape.circle,
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 6,
+                              offset: Offset(2, 3),
+                            )
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                  // Brettets midt-boks
+                  Positioned(
+                    left: boardOrigin.dx + boardSide * 0.375,
+                    top: boardOrigin.dy + boardSide * 0.375,
+                    child: CenterBox(width: boardSide * 0.25),
+                  ),
+                ],
               ),
             ),
-            // FELTER
-            ...fields.asMap().entries.map((entry) {
-              final f = entry.value;
-              final pos = Offset(
-                boardOrigin.dx + f.relPos.dx * boardSide,
-                boardOrigin.dy + f.relPos.dy * boardSide,
-              );
-              double size = baseFieldSize;
-              if (f.type == 'immunity') size *= immunityMultiplier;
-              if (f.type == 'start') size *= startMultiplier;
+            // Spillernes handbokser (alltid i viewport, ikke rotert)
+            // BUNN (meg)
+            Positioned(
+              left: boardOrigin.dx + (boardSide - boxWidth) / 2,
+              top: boardOrigin.dy + boardSide + offset,
+              child: PlayerHandBox(player: boxOrder[0], width: boxWidth, isMe: true),
+            ),
+            // HØYRE (90 grader)
+            Positioned(
+              left: boardOrigin.dx + boardSide + offset,
+              top: boardOrigin.dy + (boardSide - boxWidth) / 2,
+              child: Transform.rotate(
+                angle: pi / 2,
+                child: PlayerHandBox(player: boxOrder[1], width: boxWidth),
+              ),
+            ),
+            // TOPP (180 grader)
+            Positioned(
+              left: boardOrigin.dx + (boardSide - boxWidth) / 2,
+              top: boardOrigin.dy - boxHeight - offset,
+              child: Transform.rotate(
+                angle: pi,
+                child: PlayerHandBox(player: boxOrder[2], width: boxWidth),
+              ),
+            ),
+                        // VENSTRE (-90 grader)
+            Positioned(
+              left: boardOrigin.dx - boxHeight - offset,
+              top: boardOrigin.dy + (boardSide - boxWidth) / 2,
+              child: Transform.rotate(
+                angle: -pi / 2,
+                child: PlayerHandBox(player: boxOrder[3], width: boxWidth),
+              ),
+            ),
 
-              Color color;
-              if (f.type == 'immunity' || f.type == 'goal' || f.type == 'start') {
-                color = playerStartColor[f.player] ?? Colors.green;
-           //   } else if (f.type == 'start') {
-             //   color = playerStartColor[f.player] ?? Colors.green;
-              //} else if (f.type == 'goal') {
-              //  color = Colors.deepOrange;
-              } else {
-                color = Colors.black;
-              }
-
-              return Positioned(
-                left: pos.dx - size / 2,
-                top: pos.dy - size / 2,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    if (f.type == 'start')
-                      CustomPaint(
-                        size: Size(size, size),
-                        painter: OctagonPainter(color),
-                      )
-                    else
-                      Container(
-                        width: size,
-                        height: size,
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: size * 0.14),
-                        ),
-                      ),
-
-                    
-                      // Og så tegner du de med en DiamondPainter:
-                    if (f.type == 'goal')
-                      CustomPaint(
-                        size: Size(size, size),
-                        painter: DiamondPainter(color),
-                      ),   
-
-                      //Legger til tall
-                    if (f.type == 'goal')
-                      Text(
-                        '${f.goalNumber}',
-                        style: TextStyle(fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        fontSize: size * 0.6,
-                        shadows: [Shadow(blurRadius: 2, color: Colors.black)],
-                        )
-                      )
-
-
-                    else if (f.type == 'start')
-                      Text(
-                        '${f.startNumber}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          fontSize: size * 0.6,
-                          shadows: [Shadow(blurRadius: 2, color: Colors.black)],
-                        ),
-                      ),
-                  ],
-                ),
-              );
-            }),
-            // BRIKKE (test)
-            Builder(builder: (context) {
-              final pos = Offset(
-                boardOrigin.dx + fields[currentPos].relPos.dx * boardSide,
-                boardOrigin.dy + fields[currentPos].relPos.dy * boardSide,
-              );
-              return Positioned(
-                left: pos.dx - pieceSize / 2,
-                top: pos.dy - pieceSize / 2,
-                child: Container(
-                  width: pieceSize,
-                  height: pieceSize,
-                  decoration: BoxDecoration(
-                    color: const Color.fromARGB(255, 3, 224, 195),
-                    shape: BoxShape.circle,
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 6,
-                        offset: Offset(2, 3),
-                      )
-                    ],
-                  ),
-                ),
-              );
-            }),
-            // KNAPP for å flytte brikke
+            // KNAPP for å flytte brikke (for testing)
             Positioned(
               left: 30,
               bottom: 30,
@@ -289,7 +357,7 @@ class _DogBoardState extends State<DogBoard> {
   }
 }
 
-// Oktagontegner (samme som før)
+// Oktagontegner (startfelt)
 class OctagonPainter extends CustomPainter {
   final Color fillColor;
   OctagonPainter(this.fillColor);
@@ -319,11 +387,11 @@ class OctagonPainter extends CustomPainter {
     canvas.drawPath(octagon, fillPaint);
   }
 
-
   @override
   bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
 
+// DiamondPainter for mål (goal)
 class DiamondPainter extends CustomPainter {
   final Color fillColor;
   DiamondPainter(this.fillColor);
@@ -346,4 +414,93 @@ class DiamondPainter extends CustomPainter {
   bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
 
+// Spillernes hand-bokser
+class PlayerHandBox extends StatelessWidget {
+  final int player;
+  final double width;
+  final bool isMe;
+  const PlayerHandBox({
+    super.key,
+    required this.player,
+    required this.width,
+    this.isMe = false,
+  });
 
+  @override
+  Widget build(BuildContext context) {
+    final Map<int, Color> playerColor = {
+      1: Colors.red,
+      2: Colors.blue,
+      3: Colors.yellow,
+      4: Colors.purple,
+    };
+    return Container(
+      width: width,
+      height: width * 0.60,
+      decoration: BoxDecoration(
+        color: playerColor[player]!.withOpacity(isMe ? 0.25 : 0.18),
+        border: Border.all(color: playerColor[player]!, width: isMe ? 3 : 2),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: isMe
+            ? [
+                BoxShadow(
+                  color: playerColor[player]!.withOpacity(0.24),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                )
+              ]
+            : [],
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        isMe ? "You" : "Player $player",
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          color: playerColor[player],
+          fontSize: width * 0.23,
+          letterSpacing: 2.5,
+        ),
+      ),
+    );
+  }
+}
+
+// Rektangel midt på brettet med "DOG"
+class CenterBox extends StatelessWidget {
+  final double width;
+  const CenterBox({super.key, required this.width});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: width * 1,
+      decoration: BoxDecoration(
+        color: Colors.black87,
+        border: Border.all(color: Colors.white, width: 4),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.24),
+            blurRadius: 12,
+            offset: const Offset(2, 8),
+          ),
+        ],
+      ),
+      alignment: Alignment.center,
+      child: const Text(
+        "DOG",
+        style: TextStyle(
+          fontWeight: FontWeight.w900,
+          fontFamily: 'Arial Black',
+          fontSize: 56,
+          color: Colors.white,
+          letterSpacing: 7,
+          shadows: [Shadow(blurRadius: 3, color: Colors.deepOrange, offset: Offset(0, 2))],
+        ),
+      ),
+    );
+  }
+}
+
+            
