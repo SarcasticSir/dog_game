@@ -157,7 +157,7 @@ class _DogBoardState extends State<DogBoard> {
         double pieceSize = baseFieldSize * 0.8;
         final double boxWidth = boardSide * 0.23;
         final double boxHeight = boxWidth * 0.6;
-        final double offset = boardSide * 0.07;
+        // final double offset = boardSide * 0.07; //// Fjernet denne da den ikke brukes per nå, men lar den stå tilfelle det skal brukes senere... :)
 
         // Hvilke spillere skal vises hvor? (rotasjon for håndboksene)
         List<int> boxOrder = [
@@ -324,9 +324,9 @@ class _DogBoardState extends State<DogBoard> {
               // TOPP (180 grader)
               Positioned(
                 left: boardOrigin.dx + (boardSide - boxWidth) / 2,
-                top: boardOrigin.dy - boxHeight * -0.2,
+                top: boardOrigin.dy - boxHeight * -0.15,
                 child: Transform.rotate(
-                  angle: pi,
+                  angle: pi * 2,
                   child: PlayerHandBox(player: boxOrder[2], width: boxWidth),
                 ),
               ),
@@ -423,12 +423,7 @@ class PlayerHandBox extends StatelessWidget {
   final int player;
   final double width;
   final bool isMe;
-  const PlayerHandBox({
-    super.key,
-    required this.player,
-    required this.width,
-    this.isMe = false,
-  });
+  const PlayerHandBox({super.key, required this.player, required this.width, this.isMe = false});
 
   @override
   Widget build(BuildContext context) {
@@ -442,32 +437,36 @@ class PlayerHandBox extends StatelessWidget {
       width: width,
       height: width * 0.60,
       decoration: BoxDecoration(
-        color: playerColor[player]!.withOpacity(isMe ? 0.25 : 0.18),
+        color: playerColor[player]!.withAlpha(isMe ? 64 : 46), // tilsvarer opacity 0.25 / 0.18
         border: Border.all(color: playerColor[player]!, width: isMe ? 3 : 2),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(width * 0.08),
         boxShadow: isMe
             ? [
                 BoxShadow(
-                  color: playerColor[player]!.withOpacity(0.24),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
+                  color: playerColor[player]!.withAlpha(61),
+                  blurRadius: width * 0.13,
+                  offset: Offset(0, width * 0.06),
                 )
               ]
             : [],
       ),
       alignment: Alignment.center,
-      child: Text(
-        isMe ? "You" : "$player",
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          color: playerColor[player],
-          fontSize: width * 0.23,
-          letterSpacing: 2.5,
+      child: FittedBox(
+        fit: BoxFit.contain,
+        child: Text(
+          "Player $player",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: playerColor[player],
+            fontSize: width * 0.23,
+          ),
         ),
       ),
     );
   }
 }
+
 
 // Rektangel midt på brettet med "DOG"
 class CenterBox extends StatelessWidget {
@@ -478,33 +477,41 @@ class CenterBox extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: width,
-      height: width * 1,
+      height: width,
       decoration: BoxDecoration(
         color: Colors.black87,
-        border: Border.all(color: Colors.white, width: 4),
-        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white, width: width * 0.045),
+        borderRadius: BorderRadius.circular(width * 0.11),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.24),
-            blurRadius: 12,
-            offset: const Offset(2, 8),
+            color: Colors.black.withAlpha(61),
+            blurRadius: width * 0.18,
+            offset: Offset(0, width * 0.11),
           ),
         ],
       ),
       alignment: Alignment.center,
-      child: const Text(
-        "DOG",
-        style: TextStyle(
-          fontWeight: FontWeight.w900,
-          fontFamily: 'Arial Black',
-          fontSize: 56,
-          color: Colors.white,
-          letterSpacing: 7,
-          shadows: [Shadow(blurRadius: 3, color: Colors.deepOrange, offset: Offset(0, 2))],
+      child: FittedBox(
+        fit: BoxFit.contain,
+        child: Text(
+          "DOG",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontWeight: FontWeight.w900,
+            fontFamily: 'Arial Black',
+            fontSize: width * 0.36,
+            color: Colors.white,
+            letterSpacing: width * 0.11,
+            shadows: [
+              Shadow(
+                blurRadius: width * 0.06,
+                color: Colors.deepOrange,
+                offset: Offset(0, width * 0.036),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
-
-            
