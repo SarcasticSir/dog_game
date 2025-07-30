@@ -156,7 +156,7 @@ class _DogBoardState extends State<DogBoard> {
         double startMultiplier = 1.13;
         double pieceSize = baseFieldSize * 0.8;
         final double boxWidth = boardSide * 0.23;
-        final double boxHeight = boxWidth * 0.60;
+        final double boxHeight = boxWidth * 0.6;
         final double offset = boardSide * 0.07;
 
         // Hvilke spillere skal vises hvor? (rotasjon for håndboksene)
@@ -297,45 +297,49 @@ class _DogBoardState extends State<DogBoard> {
                   Positioned(
                     left: boardOrigin.dx + boardSide * 0.375,
                     top: boardOrigin.dy + boardSide * 0.375,
-                    child: CenterBox(width: boardSide * 0.25),
-                  ),
+                    child: Transform.rotate(
+                        angle: -getBoardRotation(myPlayerNumber),
+                        child: CenterBox(width: boardSide * 0.25),                  
+                        ),
+                  )
                 ],
               ),
             ),
-            // Spillernes handbokser (alltid i viewport, ikke rotert)
-            // BUNN (meg)
-            Positioned(
-              left: boardOrigin.dx + (boardSide - boxWidth) / 2,
-              top: boardOrigin.dy + boardSide + offset,
-              child: PlayerHandBox(player: boxOrder[0], width: boxWidth, isMe: true),
-            ),
-            // HØYRE (90 grader)
-            Positioned(
-              left: boardOrigin.dx + boardSide + offset,
-              top: boardOrigin.dy + (boardSide - boxWidth) / 2,
-              child: Transform.rotate(
-                angle: pi / 2,
-                child: PlayerHandBox(player: boxOrder[1], width: boxWidth),
+            // Håndbokser: Legg dem på innsiden av brettet – nær senteret, alltid samme avstand
+              // BUNN (meg)
+              Positioned(
+                left: boardOrigin.dx + (boardSide - boxWidth) / 2,
+                top: boardOrigin.dy + boardSide * 0.845,
+                child: PlayerHandBox(player: boxOrder[0], width: boxWidth, isMe: true),
               ),
-            ),
-            // TOPP (180 grader)
-            Positioned(
-              left: boardOrigin.dx + (boardSide - boxWidth) / 2,
-              top: boardOrigin.dy - boxHeight - offset,
-              child: Transform.rotate(
-                angle: pi,
-                child: PlayerHandBox(player: boxOrder[2], width: boxWidth),
+              // HØYRE (90 grader)
+              Positioned(
+                left: boardOrigin.dx + boardSide * 0.8,
+                top: boardOrigin.dy + (boardSide - boxWidth) / 1.8,
+                child: Transform.rotate(
+                  angle: pi / 2,
+                  child: PlayerHandBox(player: boxOrder[1], width: boxWidth),
+                ),
               ),
-            ),
-                        // VENSTRE (-90 grader)
-            Positioned(
-              left: boardOrigin.dx - boxHeight - offset,
-              top: boardOrigin.dy + (boardSide - boxWidth) / 2,
-              child: Transform.rotate(
-                angle: -pi / 2,
-                child: PlayerHandBox(player: boxOrder[3], width: boxWidth),
+              // TOPP (180 grader)
+              Positioned(
+                left: boardOrigin.dx + (boardSide - boxWidth) / 2,
+                top: boardOrigin.dy - boxHeight * -0.2,
+                child: Transform.rotate(
+                  angle: pi,
+                  child: PlayerHandBox(player: boxOrder[2], width: boxWidth),
+                ),
               ),
-            ),
+              // VENSTRE (-90 grader)
+              Positioned(
+                left: boardOrigin.dx - boxHeight * 0.2,
+                top: boardOrigin.dy + (boardSide - boxWidth) / 1.8,
+                child: Transform.rotate(
+                  angle: -pi / 2,
+                  child: PlayerHandBox(player: boxOrder[3], width: boxWidth),
+                ),
+              ),
+
 
             // KNAPP for å flytte brikke (for testing)
             Positioned(
@@ -453,7 +457,7 @@ class PlayerHandBox extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: Text(
-        isMe ? "You" : "Player $player",
+        isMe ? "You" : "$player",
         style: TextStyle(
           fontWeight: FontWeight.bold,
           color: playerColor[player],
