@@ -7,6 +7,8 @@ import 'octagon_painter.dart';
 import 'diamond_painter.dart';
 import 'player_hand_box.dart';
 import 'center_box.dart';
+import '../dog_card.dart';
+
 
 class DogBoard extends StatefulWidget {
   const DogBoard({super.key});
@@ -19,7 +21,7 @@ class _DogBoardState extends State<DogBoard> {
   int currentPos = 0;
 
   /// Hvilken spiller vises NEDERST (0=1, 1=2, ...)
-  final int myPlayerNumber = 3;
+  final int myPlayerNumber = 2;
 
   final Map<int, Color> playerStartColor = {
     1: Colors.red,
@@ -27,12 +29,18 @@ class _DogBoardState extends State<DogBoard> {
     3: Colors.yellow,
     4: Colors.purple,
   };
-
+ // --- KORTSTOKK START ---
+  late List<DogCard> deck;
+  // --- KORTSTOKK SLUTT --
 
   @override
   void initState() {
     super.initState();
     fields = _manualFields();
+        // --- KORTSTOKK OPPRETTES HER ---
+    deck = buildDogDeck();
+    deck.shuffle();
+    // --- KORTSTOKK SLUTT ---
   }
 
   List<Field> _manualFields() {
@@ -148,8 +156,89 @@ List<int> boxOrder = [
 
         // Håndboksene skal alltid være i samme posisjon ift. brettet
 
-        return Stack(
+         return Stack(
           children: [
+            // --- KORTBUNKE OG TELLER (øverst til venstre på skjermen, alltid rett vei) ---
+            Positioned(
+              left: boardOrigin.dx - 130,
+              top: boardOrigin.dy + 10,
+              child: Container(
+                constraints: const BoxConstraints(
+                  minWidth: 110,
+                  maxWidth: 160,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // --- Kortbunke ---
+                    Container(
+                      width: 130,
+                      height: 170,
+                      margin: const EdgeInsets.only(bottom: 20),
+                      child: Stack(
+                        children: [
+                          for (int i = 2; i >= 0; i--)
+                            Positioned(
+                              left: i.toDouble() * 5,
+                              top: i.toDouble() * 7,
+                              child: Container(
+                                width: 110,
+                                height: 150,
+                                decoration: BoxDecoration(
+                                  color: i == 0 ? Colors.white : Colors.grey[300],
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black26,
+                                      blurRadius: 7,
+                                      offset: Offset(2, 3),
+                                    ),
+                                  ],
+                                  border: Border.all(color: Colors.grey.shade400, width: 2),
+                                ),
+                              ),
+                            ),
+                          // Dummy-ikon (bytt til bakside senere)
+                          Positioned(
+                            left: 6,
+                            top: 18,
+                            child: SizedBox(
+                              width: 80,
+                              height: 120,
+                              child: Center(
+                                child: Icon(Icons.style, size: 100, color: Colors.blueGrey[300]),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // --- Teller ---
+                    Container(
+                      width: 100,
+                      height: 70,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 3)],
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '${deck.length} kort igjen',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 19,
+                          color: Colors.black87,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+
             // Rotér hele brettet ift. meg
             Transform.rotate(
               angle: getBoardRotation(myPlayerNumber),
@@ -328,8 +417,7 @@ Positioned(
     child: PlayerHandBox(player: boxOrder[3], width: boxWidth),
   ),
 ),
-              
-              
+            
                           // KNAPP for å flytte brikke (test)
             Positioned(
               left: 30,
