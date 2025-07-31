@@ -2,17 +2,15 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../models/field.dart';
+//import '../models/piece.dart';
+import '../game_manager.dart';
 import '../utils/board_rotation.dart';
 import 'octagon_painter.dart';
 import 'diamond_painter.dart';
 import 'player_hand_box.dart';
 import 'center_box.dart';
-import '../dog_card.dart';
-import '../models/piece.dart';
 import 'dog_piece_widget.dart';
-
-
-
+import '../dog_card.dart'; // <- denne må du ha!
 
 class DogBoard extends StatefulWidget {
   const DogBoard({super.key});
@@ -22,11 +20,13 @@ class DogBoard extends StatefulWidget {
 
 class _DogBoardState extends State<DogBoard> {
   late List<Field> fields;
-  late List<DogPiece> pieces;
+  late GameManager gameManager;
 
+  DogCard? selectedCard;
+  DogCard? hoveredCard;
 
-  /// Hvilken spiller vises NEDERST (0=1, 1=2, ...)
-  final int myPlayerNumber = 2;
+  /// Hvilken spiller vises NEDERST (1=1, 2=2, ...)
+  final int myPlayerNumber = 1;
 
   final Map<int, Color> playerStartColor = {
     1: Colors.red,
@@ -34,51 +34,80 @@ class _DogBoardState extends State<DogBoard> {
     3: Colors.yellow,
     4: Colors.purple,
   };
- // --- KORTSTOKK START ---
-  late List<DogCard> deck;
-  // --- KORTSTOKK SLUTT --
 
   @override
   void initState() {
     super.initState();
     fields = _manualFields();
-
-        // Lag 4 brikker for hver spiller, plassert på egne startfelt
-    pieces = [];
-    for (int p = 1; p <= 4; p++) {
-      // Finn alle startfelt-indekser for denne spilleren:
-      final playerStartIndices = fields.asMap().entries
-          .where((entry) => entry.value.type == 'start' && entry.value.player == p)
-          .map((entry) => entry.key)
-          .toList();
-      for (final idx in playerStartIndices) {
-        pieces.add(DogPiece(player: p, fieldIndex: idx));
-      }
-    }
-        // --- KORTSTOKK OPPRETTES HER ---
-    deck = buildDogDeck();
-    deck.shuffle();
-    // --- KORTSTOKK SLUTT ---
+    gameManager = GameManager(fields: fields);
   }
 
   List<Field> _manualFields() {
     final coords = [
-      Offset(0.10, 0.10), Offset(0.15, 0.10), Offset(0.20, 0.10), Offset(0.25, 0.15),
-      Offset(0.30, 0.20), Offset(0.35, 0.25), Offset(0.40, 0.30), Offset(0.45, 0.35),
-      Offset(0.50, 0.35), Offset(0.55, 0.35), Offset(0.60, 0.30), Offset(0.65, 0.25),
-      Offset(0.70, 0.20), Offset(0.75, 0.15), Offset(0.80, 0.10), Offset(0.85, 0.10),
-      Offset(0.90, 0.10), Offset(0.90, 0.15), Offset(0.90, 0.20), Offset(0.85, 0.25),
-      Offset(0.80, 0.30), Offset(0.75, 0.35), Offset(0.70, 0.40), Offset(0.65, 0.45),
-      Offset(0.65, 0.50), Offset(0.65, 0.55), Offset(0.70, 0.60), Offset(0.75, 0.65),
-      Offset(0.80, 0.70), Offset(0.85, 0.75), Offset(0.90, 0.80), Offset(0.90, 0.85),
-      Offset(0.90, 0.90), Offset(0.85, 0.90), Offset(0.80, 0.90), Offset(0.75, 0.85),
-      Offset(0.70, 0.80), Offset(0.65, 0.75), Offset(0.60, 0.70), Offset(0.55, 0.65),
-      Offset(0.50, 0.65), Offset(0.45, 0.65), Offset(0.40, 0.70), Offset(0.35, 0.75),
-      Offset(0.30, 0.80), Offset(0.25, 0.85), Offset(0.20, 0.90), Offset(0.15, 0.90),
-      Offset(0.10, 0.90), Offset(0.10, 0.85), Offset(0.10, 0.80), Offset(0.15, 0.75),
-      Offset(0.20, 0.70), Offset(0.25, 0.65), Offset(0.30, 0.60), Offset(0.35, 0.55),
-      Offset(0.35, 0.50), Offset(0.35, 0.45), Offset(0.30, 0.40), Offset(0.25, 0.35),
-      Offset(0.20, 0.30), Offset(0.15, 0.25), Offset(0.10, 0.20), Offset(0.10, 0.15),
+      Offset(0.10, 0.10),
+      Offset(0.15, 0.10),
+      Offset(0.20, 0.10),
+      Offset(0.25, 0.15),
+      Offset(0.30, 0.20),
+      Offset(0.35, 0.25),
+      Offset(0.40, 0.30),
+      Offset(0.45, 0.35),
+      Offset(0.50, 0.35),
+      Offset(0.55, 0.35),
+      Offset(0.60, 0.30),
+      Offset(0.65, 0.25),
+      Offset(0.70, 0.20),
+      Offset(0.75, 0.15),
+      Offset(0.80, 0.10),
+      Offset(0.85, 0.10),
+      Offset(0.90, 0.10),
+      Offset(0.90, 0.15),
+      Offset(0.90, 0.20),
+      Offset(0.85, 0.25),
+      Offset(0.80, 0.30),
+      Offset(0.75, 0.35),
+      Offset(0.70, 0.40),
+      Offset(0.65, 0.45),
+      Offset(0.65, 0.50),
+      Offset(0.65, 0.55),
+      Offset(0.70, 0.60),
+      Offset(0.75, 0.65),
+      Offset(0.80, 0.70),
+      Offset(0.85, 0.75),
+      Offset(0.90, 0.80),
+      Offset(0.90, 0.85),
+      Offset(0.90, 0.90),
+      Offset(0.85, 0.90),
+      Offset(0.80, 0.90),
+      Offset(0.75, 0.85),
+      Offset(0.70, 0.80),
+      Offset(0.65, 0.75),
+      Offset(0.60, 0.70),
+      Offset(0.55, 0.65),
+      Offset(0.50, 0.65),
+      Offset(0.45, 0.65),
+      Offset(0.40, 0.70),
+      Offset(0.35, 0.75),
+      Offset(0.30, 0.80),
+      Offset(0.25, 0.85),
+      Offset(0.20, 0.90),
+      Offset(0.15, 0.90),
+      Offset(0.10, 0.90),
+      Offset(0.10, 0.85),
+      Offset(0.10, 0.80),
+      Offset(0.15, 0.75),
+      Offset(0.20, 0.70),
+      Offset(0.25, 0.65),
+      Offset(0.30, 0.60),
+      Offset(0.35, 0.55),
+      Offset(0.35, 0.50),
+      Offset(0.35, 0.45),
+      Offset(0.30, 0.40),
+      Offset(0.25, 0.35),
+      Offset(0.20, 0.30),
+      Offset(0.15, 0.25),
+      Offset(0.10, 0.20),
+      Offset(0.10, 0.15),
     ];
 
     final List<Field> startFields = [
@@ -115,7 +144,7 @@ class _DogBoardState extends State<DogBoard> {
       Field(Offset(0.79, 0.21), 'goal', goalNumber: 2, player: 2),
       Field(Offset(0.75, 0.25), 'goal', goalNumber: 3, player: 2),
       Field(Offset(0.71, 0.29), 'goal', goalNumber: 4, player: 2),
-      // Spiller 3  
+      // Spiller 3
       Field(Offset(0.83, 0.83), 'goal', goalNumber: 1, player: 3),
       Field(Offset(0.79, 0.79), 'goal', goalNumber: 2, player: 3),
       Field(Offset(0.75, 0.75), 'goal', goalNumber: 3, player: 3),
@@ -131,16 +160,18 @@ class _DogBoardState extends State<DogBoard> {
       for (int i = 0; i < coords.length; i++)
         Field(
           coords[i],
-          ((i == 0) || (i == 16) || (i == 32) || (i == 48)) ? 'immunity' : 'normal',
+          ((i == 0) || (i == 16) || (i == 32) || (i == 48))
+              ? 'immunity'
+              : 'normal',
           player: (i == 0)
               ? 1
               : (i == 16)
-                  ? 2
-                  : (i == 32)
-                      ? 3
-                      : (i == 48)
-                          ? 4
-                          : null,
+              ? 2
+              : (i == 32)
+              ? 3
+              : (i == 48)
+              ? 4
+              : null,
         ),
       ...startFields,
       ...goalFields,
@@ -162,102 +193,185 @@ class _DogBoardState extends State<DogBoard> {
         double pieceSize = baseFieldSize * 0.8;
         final double boxWidth = boardSide * 0.23;
         final double boxHeight = boxWidth * 0.60;
-        //final double offset = boardSide * 0.07; fjerner denne da den ikke trengs.
 
-        // Hvilke spillere skal vises hvor? (rotasjon for håndboksene)
-List<int> boxOrder = [
-  myPlayerNumber, // BUNN (deg)
-  (myPlayerNumber % 4) + 1, // VENSTRE (med klokka)
-  ((myPlayerNumber + 1) % 4) + 1, // TOPP
-  ((myPlayerNumber + 2) % 4) + 1, // HØYRE
-];
+        List<int> boxOrder = [
+          myPlayerNumber,
+          (myPlayerNumber % 4) + 1,
+          ((myPlayerNumber + 1) % 4) + 1,
+          ((myPlayerNumber + 2) % 4) + 1,
+        ];
 
-        // Håndboksene skal alltid være i samme posisjon ift. brettet
-
-         return Stack(
+return Stack(
           children: [
-            // --- KORTBUNKE OG TELLER (øverst til venstre på skjermen, alltid rett vei) ---
+            // KORTBUNKE OG TELLER (NY POSISJON)
             Positioned(
-              left: boardOrigin.dx - 130,
+              left: boardOrigin.dx - 220,
               top: boardOrigin.dy + 10,
-              child: Container(
-                constraints: const BoxConstraints(
-                  minWidth: 110,
-                  maxWidth: 160,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // --- Kortbunke ---
-                    Container(
-                      width: 130,
-                      height: 170,
-                      margin: const EdgeInsets.only(bottom: 20),
-                      child: Stack(
-                        children: [
-                          for (int i = 2; i >= 0; i--)
-                            Positioned(
-                              left: i.toDouble() * 5,
-                              top: i.toDouble() * 7,
-                              child: Container(
-                                width: 110,
-                                height: 150,
-                                decoration: BoxDecoration(
-                                  color: i == 0 ? Colors.white : Colors.grey[300],
-                                  borderRadius: BorderRadius.circular(10),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black26,
-                                      blurRadius: 7,
-                                      offset: Offset(2, 3),
-                                    ),
-                                  ],
-                                  border: Border.all(color: Colors.grey.shade400, width: 2),
+              child: Column( // Column er fint her, da den ikke er Positioned.
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // KORTBUNKE
+                  Container(
+                    width: 130,
+                    height: 170,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    child: Stack(
+                      children: [
+                        for (int i = 2; i >= 0; i--)
+                          Positioned(
+                            left: i.toDouble() * 5,
+                            top: i.toDouble() * 7,
+                            child: Container(
+                              width: 110,
+                              height: 150,
+                              decoration: BoxDecoration(
+                                color: i == 0
+                                    ? Colors.white
+                                    : Colors.grey[300],
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black26,
+                                    blurRadius: 7,
+                                    offset: Offset(2, 3),
+                                  ),
+                                ],
+                                border: Border.all(
+                                  color: Colors.grey.shade400,
+                                  width: 2,
                                 ),
                               ),
                             ),
-                          // Dummy-ikon (bytt til bakside senere)
-                          Positioned(
-                            left: 6,
-                            top: 18,
-                            child: SizedBox(
-                              width: 80,
-                              height: 120,
-                              child: Center(
-                                child: Icon(Icons.style, size: 100, color: Colors.blueGrey[300]),
+                          ),
+                        Positioned(
+                          left: 6,
+                          top: 18,
+                          child: SizedBox(
+                            width: 80,
+                            height: 120,
+                            child: Center(
+                              child: Icon(
+                                Icons.style,
+                                size: 100,
+                                color: Colors.blueGrey[300],
                               ),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                    // --- Teller ---
-                    Container(
-                      width: 100,
-                      height: 70,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 3)],
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '${deck.length} kort igjen',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 19,
-                          color: Colors.black87,
                         ),
-                        textAlign: TextAlign.center,
-                      ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  // TELLER
+                  Container(
+                    width: 100,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black12, blurRadius: 3),
+                      ],
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${gameManager.deck.length} kort igjen',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 19,
+                        color: Colors.black87,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
               ),
             ),
 
+            // HÅNDKORTENE DINE (3 rader á 2 kort) - FLYTTET HIT!
+            Positioned(
+              left: boardOrigin.dx - 220, // flytt så langt til venstre du ønsker
+              top: boardOrigin.dy + 210, // må stå under bunke/teller (juster om nødvendig)
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(3, (row) {
+                  int startIdx = row * 2;
+                  final hand = gameManager.playerHands[myPlayerNumber - 1];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: List.generate(2, (col) {
+                        int cardIdx = startIdx + col;
+                        if (cardIdx >= hand.length) {
+                          return const SizedBox(
+                            width: 112,
+                            height: 152,
+                          );
+                        }
+                        final card = hand[cardIdx];
+                        final isSelected = card == selectedCard;
+                        return MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                selectedCard = card;
+                              });
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(
+                                milliseconds: 100,
+                              ),
+                              width: 110,
+                              height: 150,
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? Colors.orange[100]
+                                    : Colors.white,
+                                border: Border.all(
+                                  color: isSelected
+                                      ? Colors.orange
+                                      : Colors.black26,
+                                  width: isSelected ? 3 : 1.5,
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  if (isSelected)
+                                    const BoxShadow(
+                                      color: Colors.orangeAccent,
+                                      blurRadius: 7,
+                                      offset: Offset(0, 2),
+                                    ),
+                                ],
+                              ),
+                              child: Center(
+                                child: Text(
+                                  card.toString(),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 26,
+                                    color:
+                                        card.suit == Suit.hearts || card.suit == Suit.diamonds
+                                            ? Colors.red
+                                            : Colors.black,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+                  );
+                }),
+              ),
+            ),
 
-            // Rotér hele brettet ift. meg
+            // Brett og brettinnhold - FLYTTET HIT!
             Transform.rotate(
               angle: getBoardRotation(myPlayerNumber),
               child: Stack(
@@ -271,7 +385,10 @@ List<int> boxOrder = [
                       height: boardSide,
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        border: Border.all(color: Colors.black, width: 4),
+                        border: Border.all(
+                          color: Colors.black,
+                          width: 4,
+                        ),
                         borderRadius: BorderRadius.circular(32),
                       ),
                     ),
@@ -288,15 +405,14 @@ List<int> boxOrder = [
                     if (f.type == 'start') size *= startMultiplier;
 
                     Color color;
-                    if (f.type == 'immunity' || f.type == 'goal' || f.type == 'start') {
+                    if (f.type == 'immunity' ||
+                        f.type == 'goal' ||
+                        f.type == 'start') {
                       color = playerStartColor[f.player] ?? Colors.green;
                     } else {
                       color = Colors.black;
                     }
-                    
-                    
 
-                    // Tekst skal ALLTID stå rett vei ift. spilleren
                     Widget? label;
                     if (f.type == 'goal') {
                       label = Transform.rotate(
@@ -309,7 +425,12 @@ List<int> boxOrder = [
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                               fontSize: size * 0.6,
-                              shadows: [Shadow(blurRadius: 2, color: Colors.black)],
+                              shadows: [
+                                Shadow(
+                                  blurRadius: 2,
+                                  color: Colors.black,
+                                ),
+                              ],
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -326,7 +447,12 @@ List<int> boxOrder = [
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                               fontSize: size * 0.6,
-                              shadows: [Shadow(blurRadius: 2, color: Colors.black)],
+                              shadows: [
+                                Shadow(
+                                  blurRadius: 2,
+                                  color: Colors.black,
+                                ),
+                              ],
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -352,7 +478,10 @@ List<int> boxOrder = [
                               decoration: BoxDecoration(
                                 color: color,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: size * 0.14),
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: size * 0.14,
+                                ),
                               ),
                             ),
                           if (f.type == 'goal')
@@ -365,24 +494,24 @@ List<int> boxOrder = [
                       ),
                     );
                   }),
-
-// ---- ALLE BRIKKER (etter feltene!) ----
-                ...pieces.map((piece) {
-                  final field = fields[piece.fieldIndex];
-                  final pos = Offset(
-                    boardOrigin.dx + field.relPos.dx * boardSide,
-                    boardOrigin.dy + field.relPos.dy * boardSide,
-                  );
-                  Color color = playerStartColor[piece.player] ?? Colors.black;
-                  return Positioned(
-                    left: pos.dx - pieceSize / 2,
-                    top: pos.dy - pieceSize / 2,
-                    child: DogPieceWidget(color: color, size: pieceSize),
-                  );
-                }),
-
-
-                  
+                  // BRIKKER
+                  ...gameManager.pieces.map((piece) {
+                    final field = fields[piece.fieldIndex];
+                    final pos = Offset(
+                      boardOrigin.dx + field.relPos.dx * boardSide,
+                      boardOrigin.dy + field.relPos.dy * boardSide,
+                    );
+                    Color color =
+                        playerStartColor[piece.player] ?? Colors.black;
+                    return Positioned(
+                      left: pos.dx - pieceSize / 2,
+                      top: pos.dy - pieceSize / 2,
+                      child: DogPieceWidget(
+                        color: color,
+                        size: pieceSize,
+                      ),
+                    );
+                  }),
                   // Brettets midt-boks
                   Positioned(
                     left: boardOrigin.dx + boardSide * 0.375,
@@ -396,45 +525,52 @@ List<int> boxOrder = [
               ),
             ),
             // Spillernes handbokser (alltid i viewport, ikke rotert)
-
-            
-// BUNN (meg)
-Positioned(
-  left: boardOrigin.dx + (boardSide - boxWidth) / 2,
-  top: boardOrigin.dy + boardSide * 0.845,
-  child: PlayerHandBox(player: boxOrder[0], width: boxWidth, isMe: true),
-),
-// VENSTRE (-90 grader)
-Positioned(
-  left: boardOrigin.dx - boxHeight * 0.2,
-  top: boardOrigin.dy + (boardSide - boxWidth) / 1.8,
-  child: Transform.rotate(
-    angle: -pi / 2,
-    child: PlayerHandBox(player: boxOrder[1], width: boxWidth),
-  ),
-),
-// TOPP (180 grader)
-Positioned(
-  left: boardOrigin.dx + (boardSide - boxWidth) / 2,
-  top: boardOrigin.dy - boxHeight * -0.15,
-  child: Transform.rotate(
-    angle: pi * 2,
-    child: PlayerHandBox(player: boxOrder[2], width: boxWidth),
-  ),
-),
-// HØYRE (90 grader)
-Positioned(
-  left: boardOrigin.dx + boardSide * 0.8,
-  top: boardOrigin.dy + (boardSide - boxWidth) / 1.8,
-  child: Transform.rotate(
-    angle: pi / 2,
-    child: PlayerHandBox(player: boxOrder[3], width: boxWidth),
-  ),
-),
-
-            
-                          // KNAPP for å flytte brikke (test)
-            
+            // BUNN (meg)
+            Positioned(
+              left: boardOrigin.dx + (boardSide - boxWidth) / 2,
+              top: boardOrigin.dy + boardSide * 0.845,
+              child: PlayerHandBox(
+                player: boxOrder[0],
+                width: boxWidth,
+                isMe: true,
+              ),
+            ),
+            // VENSTRE (-90 grader)
+            Positioned(
+              left: boardOrigin.dx - boxHeight * 0.2,
+              top: boardOrigin.dy + (boardSide - boxWidth) / 1.8,
+              child: Transform.rotate(
+                angle: -pi / 2,
+                child: PlayerHandBox(
+                  player: boxOrder[1],
+                  width: boxWidth,
+                ),
+              ),
+            ),
+            // TOPP (180 grader)
+            Positioned(
+              left: boardOrigin.dx + (boardSide - boxWidth) / 2,
+              top: boardOrigin.dy - boxHeight * -0.15,
+              child: Transform.rotate(
+                angle: pi * 2,
+                child: PlayerHandBox(
+                  player: boxOrder[2],
+                  width: boxWidth,
+                ),
+              ),
+            ),
+            // HØYRE (90 grader)
+            Positioned(
+              left: boardOrigin.dx + boardSide * 0.8,
+              top: boardOrigin.dy + (boardSide - boxWidth) / 1.8,
+              child: Transform.rotate(
+                angle: pi / 2,
+                child: PlayerHandBox(
+                  player: boxOrder[3],
+                  width: boxWidth,
+                ),
+              ),
+            ),
           ],
         );
       },
