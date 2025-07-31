@@ -8,6 +8,10 @@ import 'diamond_painter.dart';
 import 'player_hand_box.dart';
 import 'center_box.dart';
 import '../dog_card.dart';
+import '../models/piece.dart';
+import 'dog_piece_widget.dart';
+
+
 
 
 class DogBoard extends StatefulWidget {
@@ -18,7 +22,8 @@ class DogBoard extends StatefulWidget {
 
 class _DogBoardState extends State<DogBoard> {
   late List<Field> fields;
-  int currentPos = 0;
+  late List<DogPiece> pieces;
+
 
   /// Hvilken spiller vises NEDERST (0=1, 1=2, ...)
   final int myPlayerNumber = 2;
@@ -37,6 +42,19 @@ class _DogBoardState extends State<DogBoard> {
   void initState() {
     super.initState();
     fields = _manualFields();
+
+        // Lag 4 brikker for hver spiller, plassert på egne startfelt
+    pieces = [];
+    for (int p = 1; p <= 4; p++) {
+      // Finn alle startfelt-indekser for denne spilleren:
+      final playerStartIndices = fields.asMap().entries
+          .where((entry) => entry.value.type == 'start' && entry.value.player == p)
+          .map((entry) => entry.key)
+          .toList();
+      for (final idx in playerStartIndices) {
+        pieces.add(DogPiece(player: p, fieldIndex: idx));
+      }
+    }
         // --- KORTSTOKK OPPRETTES HER ---
     deck = buildDogDeck();
     deck.shuffle();
@@ -275,6 +293,8 @@ List<int> boxOrder = [
                     } else {
                       color = Colors.black;
                     }
+                    
+                    
 
                     // Tekst skal ALLTID stå rett vei ift. spilleren
                     Widget? label;
@@ -345,32 +365,24 @@ List<int> boxOrder = [
                       ),
                     );
                   }),
-                  // BRIKKE (test)
-                  Builder(builder: (context) {
-                    final pos = Offset(
-                      boardOrigin.dx + fields[currentPos].relPos.dx * boardSide,
-                      boardOrigin.dy + fields[currentPos].relPos.dy * boardSide,
-                    );
-                    return Positioned(
-                      left: pos.dx - pieceSize / 2,
-                      top: pos.dy - pieceSize / 2,
-                      child: Container(
-                        width: pieceSize,
-                        height: pieceSize,
-                        decoration: BoxDecoration(
-                          color: const Color.fromARGB(255, 3, 224, 195),
-                          shape: BoxShape.circle,
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Colors.black26,
-                              blurRadius: 6,
-                              offset: Offset(2, 3),
-                            )
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
+
+// ---- ALLE BRIKKER (etter feltene!) ----
+                ...pieces.map((piece) {
+                  final field = fields[piece.fieldIndex];
+                  final pos = Offset(
+                    boardOrigin.dx + field.relPos.dx * boardSide,
+                    boardOrigin.dy + field.relPos.dy * boardSide,
+                  );
+                  Color color = playerStartColor[piece.player] ?? Colors.black;
+                  return Positioned(
+                    left: pos.dx - pieceSize / 2,
+                    top: pos.dy - pieceSize / 2,
+                    child: DogPieceWidget(color: color, size: pieceSize),
+                  );
+                }),
+
+
+                  
                   // Brettets midt-boks
                   Positioned(
                     left: boardOrigin.dx + boardSide * 0.375,
@@ -384,6 +396,8 @@ List<int> boxOrder = [
               ),
             ),
             // Spillernes handbokser (alltid i viewport, ikke rotert)
+
+            
 // BUNN (meg)
 Positioned(
   left: boardOrigin.dx + (boardSide - boxWidth) / 2,
@@ -417,20 +431,10 @@ Positioned(
     child: PlayerHandBox(player: boxOrder[3], width: boxWidth),
   ),
 ),
+
             
                           // KNAPP for å flytte brikke (test)
-            Positioned(
-              left: 30,
-              bottom: 30,
-              child: ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    currentPos = (currentPos + 1) % 64;
-                  });
-                },
-                child: const Text("Flytt brikke"),
-              ),
-            ),
+            
           ],
         );
       },
