@@ -19,7 +19,7 @@ class _DogBoardState extends State<DogBoard> {
   int currentPos = 0;
 
   /// Hvilken spiller vises NEDERST (0=1, 1=2, ...)
-  final int myPlayerNumber = 1;
+  final int myPlayerNumber = 3;
 
   final Map<int, Color> playerStartColor = {
     1: Colors.red,
@@ -27,6 +27,7 @@ class _DogBoardState extends State<DogBoard> {
     3: Colors.yellow,
     4: Colors.purple,
   };
+
 
   @override
   void initState() {
@@ -138,12 +139,14 @@ class _DogBoardState extends State<DogBoard> {
         //final double offset = boardSide * 0.07; fjerner denne da den ikke trengs.
 
         // Hvilke spillere skal vises hvor? (rotasjon for håndboksene)
-        List<int> boxOrder = [
-          myPlayerNumber, // BUNN (meg)
-          ((myPlayerNumber) % 4) + 1, // HØYRE
-          ((myPlayerNumber + 1) % 4) + 1, // TOPP
-          ((myPlayerNumber + 2) % 4) + 1, // VENSTRE
-        ];
+List<int> boxOrder = [
+  myPlayerNumber, // BUNN (deg)
+  (myPlayerNumber % 4) + 1, // VENSTRE (med klokka)
+  ((myPlayerNumber + 1) % 4) + 1, // TOPP
+  ((myPlayerNumber + 2) % 4) + 1, // HØYRE
+];
+
+        // Håndboksene skal alltid være i samme posisjon ift. brettet
 
         return Stack(
           children: [
@@ -293,38 +296,38 @@ class _DogBoardState extends State<DogBoard> {
             ),
             // Spillernes handbokser (alltid i viewport, ikke rotert)
 // BUNN (meg)
-              Positioned(
-                left: boardOrigin.dx + (boardSide - boxWidth) / 2,
-                top: boardOrigin.dy + boardSide * 0.845,
-                child: PlayerHandBox(player: boxOrder[0], width: boxWidth, isMe: true),
-              ),
-              // HØYRE (90 grader)
-              Positioned(
-                left: boardOrigin.dx + boardSide * 0.8,
-                top: boardOrigin.dy + (boardSide - boxWidth) / 1.8,
-                child: Transform.rotate(
-                  angle: pi / 2,
-                  child: PlayerHandBox(player: boxOrder[1], width: boxWidth),
-                ),
-              ),
-              // TOPP (180 grader)
-              Positioned(
-                left: boardOrigin.dx + (boardSide - boxWidth) / 2,
-                top: boardOrigin.dy - boxHeight * -0.15,
-                child: Transform.rotate(
-                  angle: pi * 2,
-                  child: PlayerHandBox(player: boxOrder[2], width: boxWidth),
-                ),
-              ),
-              // VENSTRE (-90 grader)
-              Positioned(
-                left: boardOrigin.dx - boxHeight * 0.2,
-                top: boardOrigin.dy + (boardSide - boxWidth) / 1.8,
-                child: Transform.rotate(
-                  angle: -pi / 2,
-                  child: PlayerHandBox(player: boxOrder[3], width: boxWidth),
-                ),
-              ),
+Positioned(
+  left: boardOrigin.dx + (boardSide - boxWidth) / 2,
+  top: boardOrigin.dy + boardSide * 0.845,
+  child: PlayerHandBox(player: boxOrder[0], width: boxWidth, isMe: true),
+),
+// VENSTRE (-90 grader)
+Positioned(
+  left: boardOrigin.dx - boxHeight * 0.2,
+  top: boardOrigin.dy + (boardSide - boxWidth) / 1.8,
+  child: Transform.rotate(
+    angle: -pi / 2,
+    child: PlayerHandBox(player: boxOrder[1], width: boxWidth),
+  ),
+),
+// TOPP (180 grader)
+Positioned(
+  left: boardOrigin.dx + (boardSide - boxWidth) / 2,
+  top: boardOrigin.dy - boxHeight * -0.15,
+  child: Transform.rotate(
+    angle: pi * 2,
+    child: PlayerHandBox(player: boxOrder[2], width: boxWidth),
+  ),
+),
+// HØYRE (90 grader)
+Positioned(
+  left: boardOrigin.dx + boardSide * 0.8,
+  top: boardOrigin.dy + (boardSide - boxWidth) / 1.8,
+  child: Transform.rotate(
+    angle: pi / 2,
+    child: PlayerHandBox(player: boxOrder[3], width: boxWidth),
+  ),
+),
               
               
                           // KNAPP for å flytte brikke (test)

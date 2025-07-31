@@ -27,14 +27,16 @@ class DogCard {
 // Funksjon som lager dobbel kortstokk + jokere
 List<DogCard> buildDogDeck() {
   List<DogCard> deck = [];
-  for (var _ = 0; _ < 2; _++) {
+  // Lager 2 x 52 kort
+  for (var i = 0; i < 2; i++) {
     for (var suit in [Suit.spades, Suit.hearts, Suit.diamonds, Suit.clubs]) {
       for (var rank = 1; rank <= 13; rank++) {
         deck.add(DogCard(suit, rank));
       }
     }
   }
-  for (var _ = 0; _ < 4; _++) {
+  // 4 jokere
+  for (var j = 0; j < 4; j++) {
     deck.add(DogCard(Suit.joker, null));
   }
   return deck;
