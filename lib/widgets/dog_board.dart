@@ -223,6 +223,10 @@ class _DogBoardState extends State<DogBoard> {
           ((myPlayerNumber + 1) % 4) + 1,
           ((myPlayerNumber + 2) % 4) + 1,
         ];
+        
+        // Får spillerens farge og definerer hover/selected farger
+        final Color playerColor = playerStartColor[myPlayerNumber]!;
+        final Color hoverColor = playerColor.withAlpha((255 * 0.2).round());
 
         return Center(
           child: Row(
@@ -334,6 +338,16 @@ class _DogBoardState extends State<DogBoard> {
                               final isSelected = card == selectedCard;
                               return MouseRegion(
                                 cursor: SystemMouseCursors.click,
+                                onEnter: (_) {
+                                  setState(() {
+                                    hoveredCard = card;
+                                  });
+                                },
+                                onExit: (_) {
+                                  setState(() {
+                                    if (hoveredCard == card) hoveredCard = null;
+                                  });
+                                },
                                 child: GestureDetector(
                                   onTap: () {
                                     setState(() {
@@ -341,31 +355,43 @@ class _DogBoardState extends State<DogBoard> {
                                     });
                                   },
                                   child: AnimatedContainer(
-                                    duration: const Duration(
-                                      milliseconds: 100,
-                                    ),
-                                    width: cardWidth,
+                                    duration: const Duration(milliseconds: 100),
+                                    width: cardWidth,    
                                     height: cardHeight,
                                     margin: EdgeInsets.symmetric(
                                       horizontal: handCardSpacing,
                                     ),
                                     decoration: BoxDecoration(
                                       color: isSelected
-                                          ? Colors.orange[100]
-                                          : Colors.white,
+                                          ? Colors.orange
+                                          : hoveredCard == card
+                                              ? hoverColor
+                                              : Colors.white,
                                       border: Border.all(
                                         color: isSelected
                                             ? Colors.orange
-                                            : Colors.black26,
-                                        width: isSelected ? 3 : 1.5,
+                                            : hoveredCard == card
+                                                ? playerColor
+                                                : Colors.black26,
+                                        width: isSelected
+                                            ? 3
+                                            : hoveredCard == card
+                                                ? 2.3
+                                                : 1.5,
                                       ),
                                       borderRadius: BorderRadius.circular(10),
                                       boxShadow: [
                                         if (isSelected)
-                                          const BoxShadow(
-                                            color: Colors.orangeAccent,
+                                          BoxShadow(
+                                            color: Colors.orange,
                                             blurRadius: 7,
-                                            offset: Offset(0, 2),
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        if (hoveredCard == card && !isSelected)
+                                          BoxShadow(
+                                            color: playerColor.withAlpha((255 * 0.5).round()),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 3),
                                           ),
                                       ],
                                     ),
@@ -375,10 +401,9 @@ class _DogBoardState extends State<DogBoard> {
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: cardWidth * 0.25,
-                                          color:
-                                              card.suit == Suit.hearts || card.suit == Suit.diamonds
-                                                  ? Colors.red
-                                                  : Colors.black,
+                                          color: card.suit == Suit.hearts || card.suit == Suit.diamonds
+                                              ? Colors.red
+                                              : Colors.black,
                                         ),
                                         textAlign: TextAlign.center,
                                       ),
@@ -549,7 +574,7 @@ class _DogBoardState extends State<DogBoard> {
                   // Spillernes handbokser (plassert rundt brettet, men ikke rotert med det)
                   // BUNN (meg)
                   Positioned(
-                    bottom: boxHeight * 0.55,
+                    bottom: boxHeight * 0.2,
                     left: (boardSide - boxWidth) / 2,
                     child: PlayerHandBox(
                       player: boxOrder[0],
@@ -559,7 +584,7 @@ class _DogBoardState extends State<DogBoard> {
                   ),
                   // VENSTRE
                   Positioned(
-                    left: boxHeight * 0.25,
+                    left: -boxHeight * 0.2,
                     top: (boardSide - boxWidth) / 2 + (boxWidth * 0.2),
                     child: Transform.rotate(
                       angle: -pi / 2,
@@ -571,7 +596,7 @@ class _DogBoardState extends State<DogBoard> {
                   ),
                   // TOPP
                   Positioned(
-                    top: boxHeight * 0.55,
+                    top: boxHeight * 0.2,
                     left: (boardSide - boxWidth) / 2,
                     child: Transform.rotate(
                       angle: pi * 2,
@@ -583,7 +608,7 @@ class _DogBoardState extends State<DogBoard> {
                   ),
                   // HØYRE
                   Positioned(
-                    right: boxHeight * 0.25,
+                    right: -boxHeight * 0.2,
                     top: (boardSide - boxWidth) / 2 + (boxWidth * 0.2),
                     child: Transform.rotate(
                       angle: pi / 2,
