@@ -10,6 +10,7 @@ import 'player_hand_box.dart';
 import 'center_box.dart';
 import 'dog_piece_widget.dart';
 import '../dog_card.dart';
+import '../models/piece.dart';
 
 class DogBoard extends StatefulWidget {
   const DogBoard({super.key});
@@ -23,9 +24,10 @@ class _DogBoardState extends State<DogBoard> {
 
   DogCard? selectedCard;
   DogCard? hoveredCard;
+  DogPiece? selectedPiece; // Holder styr på hvilken brikke som er valgt
 
   /// Hvilken spiller vises NEDERST (1=1, 2=2, ...)
-  final int myPlayerNumber = 2;
+  final int myPlayerNumber = 1;
 
   final Map<int, Color> playerStartColor = {
     1: Colors.red,
@@ -39,6 +41,73 @@ class _DogBoardState extends State<DogBoard> {
     super.initState();
     fields = _manualFields();
     gameManager = GameManager(fields: fields);
+  }
+
+  /// Håndterer trykk på et kort. Kan kun velges hvis en brikke allerede er valgt.
+  void _handleCardTap(DogCard card) {
+    if (selectedPiece == null) {
+      print("Velg en brikke først.");
+      return;
+    }
+
+    setState(() {
+      if (selectedCard == card) {
+        // Avmarker kortet hvis det allerede er valgt
+        selectedCard = null;
+      } else {
+        selectedCard = card;
+      }
+    });
+  }
+
+  /// Håndterer trykk på en brikke
+  void _handlePieceTap(DogPiece piece) {
+    if (piece.player != gameManager.currentPlayer) {
+      print("Kan ikke flytte brikker fra andre spillere.");
+      return;
+    }
+
+    setState(() {
+      if (selectedPiece == piece) {
+        // Avmarker brikken hvis den allerede er valgt
+        selectedPiece = null;
+        selectedCard = null; // Avmarker også kortet
+      } else {
+        selectedPiece = piece;
+        selectedCard = null; // Nullstill kortvalget for den nye brikken
+      }
+    });
+  }
+  
+  /// Håndterer trykk på "Spill kort"-knappen
+  void _handlePlayCardButton() {
+    if (selectedCard != null && selectedPiece != null) {
+      final bool moveSuccessful = gameManager.playCard(
+        gameManager.currentPlayer,
+        selectedCard!,
+        selectedPiece!,
+      );
+      if (moveSuccessful) {
+        // Nullstill valg etter et vellykket trekk
+        setState(() {
+          selectedCard = null;
+          selectedPiece = null;
+        });
+      } else {
+        // Ugyldig trekk, kan eventuelt vise en melding
+        print("Ugyldig trekk med valgt kort og brikke.");
+      }
+    }
+  }
+
+  /// Håndterer trykk på "Pass"-knappen
+  void _handlePassButton() {
+    setState(() {
+      gameManager.passTurn();
+      // Nullstill valg etter at turen er over
+      selectedCard = null;
+      selectedPiece = null;
+    });
   }
 
   List<Field> _manualFields() {
@@ -179,6 +248,11 @@ class _DogBoardState extends State<DogBoard> {
 
   @override
   Widget build(BuildContext context) {
+    // Sjekk om det er din tur og om du har mulige trekk
+    final bool canMove = gameManager.getPossibleMovesForPlayer(myPlayerNumber).isNotEmpty;
+    final bool isMyTurn = gameManager.currentPlayer == myPlayerNumber;
+    final bool canPlayCard = isMyTurn && selectedCard != null && selectedPiece != null;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth <= constraints.maxHeight * 1.3) {
@@ -213,10 +287,15 @@ class _DogBoardState extends State<DogBoard> {
         double pieceSize = baseFieldSize * 0.8;
         final double boxWidth = boardSide * 0.23;
         final double boxHeight = boxWidth * 0.60;
+        
+        // Fast størrelse for kortene
         final double cardWidth = boardSide * 0.12;
         final double cardHeight = cardWidth * 1.4;
         final double handCardSpacing = cardWidth * 0.05;
-
+        
+        // Responsiv størrelse for knapper
+        final double buttonFontSize = constraints.maxHeight * 0.025;
+        
         List<int> boxOrder = [
           myPlayerNumber,
           (myPlayerNumber % 4) + 1,
@@ -224,94 +303,151 @@ class _DogBoardState extends State<DogBoard> {
           ((myPlayerNumber + 2) % 4) + 1,
         ];
         
-        // Får spillerens farge og definerer hover/selected farger
         final Color playerColor = playerStartColor[myPlayerNumber]!;
-        final Color hoverColor = playerColor.withAlpha((255 * 0.2).round());
+        final Color hoverColor = playerColor.withAlpha(51);
 
         return Center(
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Venstre sidepanel for kort
+              // Venstre sidepanel for kort og "Pass"-knapp
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // KORTBUNKE OG TELLER
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
+                    // KORTBUNKE OG KNAPPER
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Container(
-                          width: cardWidth * 1.2,
-                          height: cardHeight * 1.2,
-                          margin: const EdgeInsets.only(bottom: 15),
-                          child: Stack(
-                            children: [
-                              for (int i = 2; i >= 0; i--)
-                                Positioned(
-                                  left: i.toDouble() * cardWidth * 0.05,
-                                  top: i.toDouble() * cardHeight * 0.05,
-                                  child: Container(
-                                    width: cardWidth,
-                                    height: cardHeight,
-                                    decoration: BoxDecoration(
-                                      color: i == 0
-                                          ? Colors.white
-                                          : Colors.grey[300],
-                                      borderRadius: BorderRadius.circular(10),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black26,
-                                          blurRadius: 7,
-                                          offset: Offset(2, 3),
-                                        ),
-                                      ],
-                                      border: Border.all(
-                                        color: Colors.grey.shade400,
-                                        width: 2,
-                                      ),
-                                    ),
+                        // KNAPPER
+                        Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Visibility(
+                              visible: canPlayCard,
+                              child: ElevatedButton(
+                                onPressed: _handlePlayCardButton,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
+                                  elevation: 5,
                                 ),
-                              Positioned(
-                                left: cardWidth * 0.05,
-                                top: cardHeight * 0.1,
-                                child: SizedBox(
-                                  width: cardWidth * 0.9,
-                                  height: cardHeight * 0.9,
-                                  child: Center(
-                                    child: Icon(
-                                      Icons.style,
-                                      size: cardWidth * 0.8,
-                                      color: Colors.blueGrey[300],
-                                    ),
+                                child: Text(
+                                  'Spill kort',
+                                  style: TextStyle(
+                                    fontSize: buttonFontSize,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          width: cardWidth,
-                          height: cardHeight * 0.4,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10),
-                            boxShadow: [
-                              BoxShadow(color: Colors.black12, blurRadius: 3),
-                            ],
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            '${gameManager.deck.length} kort igjen',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: cardWidth * 0.15,
-                              color: Colors.black87,
                             ),
-                            textAlign: TextAlign.center,
-                          ),
+                            Visibility(
+                              visible: isMyTurn && !canMove,
+                              child: ElevatedButton(
+                                onPressed: _handlePassButton,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.grey[700],
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  elevation: 5,
+                                ),
+                                child: Text(
+                                  'Pass Tur',
+                                  style: TextStyle(
+                                    fontSize: buttonFontSize,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(width: 20),
+                        // KORTBUNKE OG TELLER
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: cardWidth * 1.2,
+                              height: cardHeight * 1.2,
+                              margin: const EdgeInsets.only(bottom: 15),
+                              child: Stack(
+                                children: [
+                                  for (int i = 2; i >= 0; i--)
+                                    Positioned(
+                                      left: i.toDouble() * cardWidth * 0.05,
+                                      top: i.toDouble() * cardHeight * 0.05,
+                                      child: Container(
+                                        width: cardWidth,
+                                        height: cardHeight,
+                                        decoration: BoxDecoration(
+                                          color: i == 0
+                                              ? Colors.white
+                                              : Colors.grey[300],
+                                          borderRadius: BorderRadius.circular(10),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black26,
+                                              blurRadius: 7,
+                                              offset: Offset(2, 3),
+                                            ),
+                                          ],
+                                          border: Border.all(
+                                            color: Colors.grey.shade400,
+                                            width: 2,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  Positioned(
+                                    left: cardWidth * 0.05,
+                                    top: cardHeight * 0.1,
+                                    child: SizedBox(
+                                      width: cardWidth * 0.9,
+                                      height: cardHeight * 0.9,
+                                      child: Center(
+                                        child: Icon(
+                                          Icons.style,
+                                          size: cardWidth * 0.8,
+                                          color: Colors.blueGrey[300],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              width: cardWidth,
+                              height: cardHeight * 0.4,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(color: Colors.black12, blurRadius: 3),
+                                ],
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                '${gameManager.deck.length} kort igjen',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: cardWidth * 0.15,
+                                  color: Colors.black87,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -350,9 +486,10 @@ class _DogBoardState extends State<DogBoard> {
                                 },
                                 child: GestureDetector(
                                   onTap: () {
-                                    setState(() {
-                                      selectedCard = card;
-                                    });
+                                    // Tillat kun å velge kort hvis en brikke er valgt
+                                    if (selectedPiece != null) {
+                                      _handleCardTap(card);
+                                    }
                                   },
                                   child: AnimatedContainer(
                                     duration: const Duration(milliseconds: 100),
@@ -364,18 +501,18 @@ class _DogBoardState extends State<DogBoard> {
                                     decoration: BoxDecoration(
                                       color: isSelected
                                           ? Colors.orange
-                                          : hoveredCard == card
+                                          : (hoveredCard == card && selectedPiece != null)
                                               ? hoverColor
                                               : Colors.white,
                                       border: Border.all(
                                         color: isSelected
                                             ? Colors.orange
-                                            : hoveredCard == card
+                                            : (hoveredCard == card && selectedPiece != null)
                                                 ? playerColor
                                                 : Colors.black26,
                                         width: isSelected
                                             ? 3
-                                            : hoveredCard == card
+                                            : (hoveredCard == card && selectedPiece != null)
                                                 ? 2.3
                                                 : 1.5,
                                       ),
@@ -387,9 +524,9 @@ class _DogBoardState extends State<DogBoard> {
                                             blurRadius: 7,
                                             offset: const Offset(0, 2),
                                           ),
-                                        if (hoveredCard == card && !isSelected)
+                                        if (hoveredCard == card && !isSelected && selectedPiece != null)
                                           BoxShadow(
-                                            color: playerColor.withAlpha((255 * 0.5).round()),
+                                            color: playerColor.withAlpha(51),
                                             blurRadius: 8,
                                             offset: const Offset(0, 3),
                                           ),
@@ -553,12 +690,20 @@ class _DogBoardState extends State<DogBoard> {
                           );
                           Color color =
                               playerStartColor[piece.player] ?? Colors.black;
+                          
+                          // Markerer valgt brikke
+                          final bool isSelected = selectedPiece == piece;
+
                           return Positioned(
                             left: pos.dx - pieceSize / 2,
                             top: pos.dy - pieceSize / 2,
-                            child: DogPieceWidget(
-                              color: color,
-                              size: pieceSize,
+                            child: GestureDetector(
+                              onTap: () => _handlePieceTap(piece),
+                              child: DogPieceWidget(
+                                color: color,
+                                size: pieceSize,
+                                isSelected: isSelected,
+                              ),
                             ),
                           );
                         }),
@@ -580,6 +725,8 @@ class _DogBoardState extends State<DogBoard> {
                       player: boxOrder[0],
                       width: boxWidth,
                       isMe: true,
+                      isCurrentPlayer: gameManager.currentPlayer == boxOrder[0],
+                      hand: gameManager.playerHands[myPlayerNumber - 1],
                     ),
                   ),
                   // VENSTRE
@@ -591,6 +738,8 @@ class _DogBoardState extends State<DogBoard> {
                       child: PlayerHandBox(
                         player: boxOrder[1],
                         width: boxWidth,
+                        isCurrentPlayer: gameManager.currentPlayer == boxOrder[1],
+                        hand: gameManager.playerHands[boxOrder[1] - 1],
                       ),
                     ),
                   ),
@@ -603,6 +752,8 @@ class _DogBoardState extends State<DogBoard> {
                       child: PlayerHandBox(
                         player: boxOrder[2],
                         width: boxWidth,
+                        isCurrentPlayer: gameManager.currentPlayer == boxOrder[2],
+                        hand: gameManager.playerHands[boxOrder[2] - 1],
                       ),
                     ),
                   ),
@@ -615,6 +766,8 @@ class _DogBoardState extends State<DogBoard> {
                       child: PlayerHandBox(
                         player: boxOrder[3],
                         width: boxWidth,
+                        isCurrentPlayer: gameManager.currentPlayer == boxOrder[3],
+                        hand: gameManager.playerHands[boxOrder[3] - 1],
                       ),
                     ),
                   ),
