@@ -2,7 +2,6 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../models/field.dart';
-//import '../models/piece.dart';
 import '../game_manager.dart';
 import '../utils/board_rotation.dart';
 import 'octagon_painter.dart';
@@ -10,7 +9,7 @@ import 'diamond_painter.dart';
 import 'player_hand_box.dart';
 import 'center_box.dart';
 import 'dog_piece_widget.dart';
-import '../dog_card.dart'; // <- denne må du ha!
+import '../dog_card.dart';
 
 class DogBoard extends StatefulWidget {
   const DogBoard({super.key});
@@ -26,7 +25,7 @@ class _DogBoardState extends State<DogBoard> {
   DogCard? hoveredCard;
 
   /// Hvilken spiller vises NEDERST (1=1, 2=2, ...)
-  final int myPlayerNumber = 1;
+  final int myPlayerNumber = 2;
 
   final Map<int, Color> playerStartColor = {
     1: Colors.red,
@@ -182,17 +181,41 @@ class _DogBoardState extends State<DogBoard> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        if (constraints.maxWidth <= constraints.maxHeight * 1.3) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.screen_rotation,
+                  size: 100,
+                  color: Colors.white,
+                ),
+                SizedBox(height: 20),
+                Text(
+                  'Vennligst roter enheten din for å spille',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        }
+
         final double boardSide = constraints.biggest.shortestSide * 0.85;
-        final Offset boardOrigin = Offset(
-          (constraints.maxWidth - boardSide) / 2,
-          (constraints.maxHeight - boardSide) / 2,
-        );
         double baseFieldSize = boardSide * 0.05;
         double immunityMultiplier = 1.2;
         double startMultiplier = 1.13;
         double pieceSize = baseFieldSize * 0.8;
         final double boxWidth = boardSide * 0.23;
         final double boxHeight = boxWidth * 0.60;
+        final double cardWidth = boardSide * 0.12;
+        final double cardHeight = cardWidth * 1.4;
+        final double handCardSpacing = cardWidth * 0.05;
 
         List<int> boxOrder = [
           myPlayerNumber,
@@ -201,377 +224,379 @@ class _DogBoardState extends State<DogBoard> {
           ((myPlayerNumber + 2) % 4) + 1,
         ];
 
-return Stack(
-          children: [
-            // KORTBUNKE OG TELLER (NY POSISJON)
-            Positioned(
-              left: boardOrigin.dx - 190,
-              top: boardOrigin.dy - 5,
-              child: Column( // Column er fint her, da den ikke er Positioned.
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // KORTBUNKE
-                  Container(
-                    width: 130,
-                    height: 170,
-                    margin: const EdgeInsets.only(bottom: 15),
-                    child: Stack(
+        return Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Venstre sidepanel for kort
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // KORTBUNKE OG TELLER
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        for (int i = 2; i >= 0; i--)
-                          Positioned(
-                            left: i.toDouble() * 5,
-                            top: i.toDouble() * 7,
-                            child: Container(
-                              width: 110,
-                              height: 150,
-                              decoration: BoxDecoration(
-                                color: i == 0
-                                    ? Colors.white
-                                    : Colors.grey[300],
-                                borderRadius: BorderRadius.circular(10),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black26,
-                                    blurRadius: 7,
-                                    offset: Offset(2, 3),
+                        Container(
+                          width: cardWidth * 1.2,
+                          height: cardHeight * 1.2,
+                          margin: const EdgeInsets.only(bottom: 15),
+                          child: Stack(
+                            children: [
+                              for (int i = 2; i >= 0; i--)
+                                Positioned(
+                                  left: i.toDouble() * cardWidth * 0.05,
+                                  top: i.toDouble() * cardHeight * 0.05,
+                                  child: Container(
+                                    width: cardWidth,
+                                    height: cardHeight,
+                                    decoration: BoxDecoration(
+                                      color: i == 0
+                                          ? Colors.white
+                                          : Colors.grey[300],
+                                      borderRadius: BorderRadius.circular(10),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black26,
+                                          blurRadius: 7,
+                                          offset: Offset(2, 3),
+                                        ),
+                                      ],
+                                      border: Border.all(
+                                        color: Colors.grey.shade400,
+                                        width: 2,
+                                      ),
+                                    ),
                                   ),
-                                ],
-                                border: Border.all(
-                                  color: Colors.grey.shade400,
-                                  width: 2,
+                                ),
+                              Positioned(
+                                left: cardWidth * 0.05,
+                                top: cardHeight * 0.1,
+                                child: SizedBox(
+                                  width: cardWidth * 0.9,
+                                  height: cardHeight * 0.9,
+                                  child: Center(
+                                    child: Icon(
+                                      Icons.style,
+                                      size: cardWidth * 0.8,
+                                      color: Colors.blueGrey[300],
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
                           ),
-                        Positioned(
-                          left: 6,
-                          top: 18,
-                          child: SizedBox(
-                            width: 80,
-                            height: 120,
-                            child: Center(
-                              child: Icon(
-                                Icons.style,
-                                size: 100,
-                                color: Colors.blueGrey[300],
-                              ),
+                        ),
+                        Container(
+                          width: cardWidth,
+                          height: cardHeight * 0.4,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(color: Colors.black12, blurRadius: 3),
+                            ],
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            '${gameManager.deck.length} kort igjen',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: cardWidth * 0.15,
+                              color: Colors.black87,
                             ),
+                            textAlign: TextAlign.center,
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  // TELLER
-                  Container(
-                    width: 90,
-                    height: 70,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: [
-                        BoxShadow(color: Colors.black12, blurRadius: 3),
-                      ],
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      '${gameManager.deck.length} kort igjen',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 19,
-                        color: Colors.black87,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // HÅNDKORTENE DINE (3 rader á 2 kort) - FLYTTET HIT!
-            Positioned(
-              left: boardOrigin.dx - 240, // flytt så langt til venstre du ønsker
-              top: boardOrigin.dy + 270, // må stå under bunke/teller (juster om nødvendig)
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: List.generate(3, (row) {
-                  int startIdx = row * 2;
-                  final hand = gameManager.playerHands[myPlayerNumber - 1];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
+                    const SizedBox(height: 30),
+                    // HÅNDKORTENE DINE
+                    Column(
                       mainAxisSize: MainAxisSize.min,
-                      children: List.generate(2, (col) {
-                        int cardIdx = startIdx + col;
-                        if (cardIdx >= hand.length) {
-                          return const SizedBox(
-                            width: 112,
-                            height: 152,
-                          );
-                        }
-                        final card = hand[cardIdx];
-                        final isSelected = card == selectedCard;
-                        return MouseRegion(
-                          cursor: SystemMouseCursors.click,
-                          child: GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                selectedCard = card;
-                              });
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(
-                                milliseconds: 100,
-                              ),
-                              width: 110,
-                              height: 150,
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? Colors.orange[100]
-                                    : Colors.white,
-                                border: Border.all(
-                                  color: isSelected
-                                      ? Colors.orange
-                                      : Colors.black26,
-                                  width: isSelected ? 3 : 1.5,
-                                ),
-                                borderRadius: BorderRadius.circular(10),
-                                boxShadow: [
-                                  if (isSelected)
-                                    const BoxShadow(
-                                      color: Colors.orangeAccent,
-                                      blurRadius: 7,
-                                      offset: Offset(0, 2),
+                      children: List.generate(3, (row) {
+                        int startIdx = row * 2;
+                        final hand = gameManager.playerHands[myPlayerNumber - 1];
+                        return Padding(
+                          padding: EdgeInsets.symmetric(vertical: handCardSpacing),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(2, (col) {
+                              int cardIdx = startIdx + col;
+                              if (cardIdx >= hand.length) {
+                                return SizedBox(
+                                  width: cardWidth + handCardSpacing,
+                                  height: cardHeight + handCardSpacing,
+                                );
+                              }
+                              final card = hand[cardIdx];
+                              final isSelected = card == selectedCard;
+                              return MouseRegion(
+                                cursor: SystemMouseCursors.click,
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      selectedCard = card;
+                                    });
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(
+                                      milliseconds: 100,
                                     ),
-                                ],
-                              ),
-                              child: Center(
-                                child: Text(
-                                  card.toString(),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 26,
-                                    color:
-                                        card.suit == Suit.hearts || card.suit == Suit.diamonds
-                                            ? Colors.red
-                                            : Colors.black,
+                                    width: cardWidth,
+                                    height: cardHeight,
+                                    margin: EdgeInsets.symmetric(
+                                      horizontal: handCardSpacing,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? Colors.orange[100]
+                                          : Colors.white,
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? Colors.orange
+                                            : Colors.black26,
+                                        width: isSelected ? 3 : 1.5,
+                                      ),
+                                      borderRadius: BorderRadius.circular(10),
+                                      boxShadow: [
+                                        if (isSelected)
+                                          const BoxShadow(
+                                            color: Colors.orangeAccent,
+                                            blurRadius: 7,
+                                            offset: Offset(0, 2),
+                                          ),
+                                      ],
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        card.toString(),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: cardWidth * 0.25,
+                                          color:
+                                              card.suit == Suit.hearts || card.suit == Suit.diamonds
+                                                  ? Colors.red
+                                                  : Colors.black,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
                                   ),
-                                  textAlign: TextAlign.center,
                                 ),
-                              ),
-                            ),
+                              );
+                            }),
                           ),
                         );
                       }),
                     ),
-                  );
-                }),
+                  ],
+                ),
               ),
-            ),
 
-            // Brett og brettinnhold - FLYTTET HIT!
-            Transform.rotate(
-              angle: getBoardRotation(myPlayerNumber),
-              child: Stack(
+              // Midten av Row: Spillbrettet og spillerboksene
+              Stack(
+                alignment: Alignment.center,
                 children: [
-                  // Brettet
-                  Positioned(
-                    left: boardOrigin.dx,
-                    top: boardOrigin.dy,
-                    child: Container(
-                      width: boardSide,
-                      height: boardSide,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border.all(
-                          color: Colors.black,
-                          width: 4,
+                  // Rotert spillbrett
+                  Transform.rotate(
+                    angle: getBoardRotation(myPlayerNumber),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Brettet
+                        Container(
+                          width: boardSide,
+                          height: boardSide,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(
+                              color: Colors.black,
+                              width: 4,
+                            ),
+                            borderRadius: BorderRadius.circular(32),
+                          ),
                         ),
-                        borderRadius: BorderRadius.circular(32),
+                        // FELTER
+                        ...fields.asMap().entries.map((entry) {
+                          final f = entry.value;
+                          final pos = Offset(
+                            f.relPos.dx * boardSide,
+                            f.relPos.dy * boardSide,
+                          );
+                          double size = baseFieldSize;
+                          if (f.type == 'immunity') size *= immunityMultiplier;
+                          if (f.type == 'start') size *= startMultiplier;
+
+                          Color color;
+                          if (f.type == 'immunity' ||
+                              f.type == 'goal' ||
+                              f.type == 'start') {
+                            color = playerStartColor[f.player] ?? Colors.green;
+                          } else {
+                            color = Colors.black;
+                          }
+
+                          Widget? label;
+                          if (f.type == 'goal') {
+                            label = Transform.rotate(
+                              angle: -getBoardRotation(myPlayerNumber),
+                              child: FittedBox(
+                                fit: BoxFit.contain,
+                                child: Text(
+                                  '${f.goalNumber}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    fontSize: size * 0.6,
+                                    shadows: [
+                                      Shadow(
+                                        blurRadius: 2,
+                                        color: Colors.black,
+                                      ),
+                                    ],
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            );
+                          } else if (f.type == 'start') {
+                            label = Transform.rotate(
+                              angle: -getBoardRotation(myPlayerNumber),
+                              child: FittedBox(
+                                fit: BoxFit.contain,
+                                child: Text(
+                                  '${f.startNumber}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    fontSize: size * 0.6,
+                                    shadows: [
+                                      Shadow(
+                                        blurRadius: 2,
+                                        color: Colors.black,
+                                      ),
+                                    ],
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            );
+                          }
+
+                          return Positioned(
+                            left: pos.dx - size / 2,
+                            top: pos.dy - size / 2,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                if (f.type == 'start')
+                                  CustomPaint(
+                                    size: Size(size, size),
+                                    painter: OctagonPainter(color),
+                                  )
+                                else
+                                  Container(
+                                    width: size,
+                                    height: size,
+                                    decoration: BoxDecoration(
+                                      color: color,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: size * 0.14,
+                                      ),
+                                    ),
+                                  ),
+                                if (f.type == 'goal')
+                                  CustomPaint(
+                                    size: Size(size, size),
+                                    painter: DiamondPainter(color),
+                                  ),
+                                if (label != null) label,
+                              ],
+                            ),
+                          );
+                        }),
+                        // BRIKKER
+                        ...gameManager.pieces.map((piece) {
+                          final field = fields[piece.fieldIndex];
+                          final pos = Offset(
+                            field.relPos.dx * boardSide,
+                            field.relPos.dy * boardSide,
+                          );
+                          Color color =
+                              playerStartColor[piece.player] ?? Colors.black;
+                          return Positioned(
+                            left: pos.dx - pieceSize / 2,
+                            top: pos.dy - pieceSize / 2,
+                            child: DogPieceWidget(
+                              color: color,
+                              size: pieceSize,
+                            ),
+                          );
+                        }),
+                        // Brettets midt-boks
+                        Transform.rotate(
+                          angle: -getBoardRotation(myPlayerNumber),
+                          child: CenterBox(width: boardSide * 0.25),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Spillernes handbokser (plassert rundt brettet, men ikke rotert med det)
+                  // BUNN (meg)
+                  Positioned(
+                    bottom: boxHeight * 0.55,
+                    left: (boardSide - boxWidth) / 2,
+                    child: PlayerHandBox(
+                      player: boxOrder[0],
+                      width: boxWidth,
+                      isMe: true,
+                    ),
+                  ),
+                  // VENSTRE
+                  Positioned(
+                    left: boxHeight * 0.25,
+                    top: (boardSide - boxWidth) / 2 + (boxWidth * 0.2),
+                    child: Transform.rotate(
+                      angle: -pi / 2,
+                      child: PlayerHandBox(
+                        player: boxOrder[1],
+                        width: boxWidth,
                       ),
                     ),
                   ),
-                  // FELTER
-                  ...fields.asMap().entries.map((entry) {
-                    final f = entry.value;
-                    final pos = Offset(
-                      boardOrigin.dx + f.relPos.dx * boardSide,
-                      boardOrigin.dy + f.relPos.dy * boardSide,
-                    );
-                    double size = baseFieldSize;
-                    if (f.type == 'immunity') size *= immunityMultiplier;
-                    if (f.type == 'start') size *= startMultiplier;
-
-                    Color color;
-                    if (f.type == 'immunity' ||
-                        f.type == 'goal' ||
-                        f.type == 'start') {
-                      color = playerStartColor[f.player] ?? Colors.green;
-                    } else {
-                      color = Colors.black;
-                    }
-
-                    Widget? label;
-                    if (f.type == 'goal') {
-                      label = Transform.rotate(
-                        angle: -getBoardRotation(myPlayerNumber),
-                        child: FittedBox(
-                          fit: BoxFit.contain,
-                          child: Text(
-                            '${f.goalNumber}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              fontSize: size * 0.6,
-                              shadows: [
-                                Shadow(
-                                  blurRadius: 2,
-                                  color: Colors.black,
-                                ),
-                              ],
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      );
-                    } else if (f.type == 'start') {
-                      label = Transform.rotate(
-                        angle: -getBoardRotation(myPlayerNumber),
-                        child: FittedBox(
-                          fit: BoxFit.contain,
-                          child: Text(
-                            '${f.startNumber}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              fontSize: size * 0.6,
-                              shadows: [
-                                Shadow(
-                                  blurRadius: 2,
-                                  color: Colors.black,
-                                ),
-                              ],
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      );
-                    }
-
-                    return Positioned(
-                      left: pos.dx - size / 2,
-                      top: pos.dy - size / 2,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          if (f.type == 'start')
-                            CustomPaint(
-                              size: Size(size, size),
-                              painter: OctagonPainter(color),
-                            )
-                          else
-                            Container(
-                              width: size,
-                              height: size,
-                              decoration: BoxDecoration(
-                                color: color,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: size * 0.14,
-                                ),
-                              ),
-                            ),
-                          if (f.type == 'goal')
-                            CustomPaint(
-                              size: Size(size, size),
-                              painter: DiamondPainter(color),
-                            ),
-                          if (label != null) label,
-                        ],
-                      ),
-                    );
-                  }),
-                  // BRIKKER
-                  ...gameManager.pieces.map((piece) {
-                    final field = fields[piece.fieldIndex];
-                    final pos = Offset(
-                      boardOrigin.dx + field.relPos.dx * boardSide,
-                      boardOrigin.dy + field.relPos.dy * boardSide,
-                    );
-                    Color color =
-                        playerStartColor[piece.player] ?? Colors.black;
-                    return Positioned(
-                      left: pos.dx - pieceSize / 2,
-                      top: pos.dy - pieceSize / 2,
-                      child: DogPieceWidget(
-                        color: color,
-                        size: pieceSize,
-                      ),
-                    );
-                  }),
-                  // Brettets midt-boks
+                  // TOPP
                   Positioned(
-                    left: boardOrigin.dx + boardSide * 0.375,
-                    top: boardOrigin.dy + boardSide * 0.375,
+                    top: boxHeight * 0.55,
+                    left: (boardSide - boxWidth) / 2,
                     child: Transform.rotate(
-                      angle: -getBoardRotation(myPlayerNumber),
-                      child: CenterBox(width: boardSide * 0.25),
+                      angle: pi * 2,
+                      child: PlayerHandBox(
+                        player: boxOrder[2],
+                        width: boxWidth,
+                      ),
+                    ),
+                  ),
+                  // HØYRE
+                  Positioned(
+                    right: boxHeight * 0.25,
+                    top: (boardSide - boxWidth) / 2 + (boxWidth * 0.2),
+                    child: Transform.rotate(
+                      angle: pi / 2,
+                      child: PlayerHandBox(
+                        player: boxOrder[3],
+                        width: boxWidth,
+                      ),
                     ),
                   ),
                 ],
               ),
-            ),
-            // Spillernes handbokser (alltid i viewport, ikke rotert)
-            // BUNN (meg)
-            Positioned(
-              left: boardOrigin.dx + (boardSide - boxWidth) / 2,
-              top: boardOrigin.dy + boardSide * 0.845,
-              child: PlayerHandBox(
-                player: boxOrder[0],
-                width: boxWidth,
-                isMe: true,
-              ),
-            ),
-            // VENSTRE (-90 grader)
-            Positioned(
-              left: boardOrigin.dx - boxHeight * 0.2,
-              top: boardOrigin.dy + (boardSide - boxWidth) / 1.8,
-              child: Transform.rotate(
-                angle: -pi / 2,
-                child: PlayerHandBox(
-                  player: boxOrder[1],
-                  width: boxWidth,
-                ),
-              ),
-            ),
-            // TOPP (180 grader)
-            Positioned(
-              left: boardOrigin.dx + (boardSide - boxWidth) / 2,
-              top: boardOrigin.dy - boxHeight * -0.15,
-              child: Transform.rotate(
-                angle: pi * 2,
-                child: PlayerHandBox(
-                  player: boxOrder[2],
-                  width: boxWidth,
-                ),
-              ),
-            ),
-            // HØYRE (90 grader)
-            Positioned(
-              left: boardOrigin.dx + boardSide * 0.8,
-              top: boardOrigin.dy + (boardSide - boxWidth) / 1.8,
-              child: Transform.rotate(
-                angle: pi / 2,
-                child: PlayerHandBox(
-                  player: boxOrder[3],
-                  width: boxWidth,
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );
