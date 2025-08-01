@@ -1,4 +1,7 @@
+// C:\dev\dog_game\lib\widgets\dog_board.dart
+
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../models/field.dart';
@@ -26,7 +29,8 @@ class _DogBoardState extends State<DogBoard> {
   DogCard? hoveredCard;
   DogPiece? selectedPiece; // Holder styr på hvilken brikke som er valgt
 
-  /// Hvilken spiller vises NEDERST. Oppdateres for å simulere bytte av spiller.
+  /// Hvilken spiller vises NEDERST. Denne oppdateres for å simulere bytte av spiller
+  /// og for å rotere brettet riktig.
   int myPlayerNumber = 1;
 
   final Map<int, Color> playerStartColor = {
@@ -41,6 +45,8 @@ class _DogBoardState extends State<DogBoard> {
     super.initState();
     fields = _manualFields();
     gameManager = GameManager(fields: fields);
+    // Sett start-spilleren til å være den første som har turen
+    myPlayerNumber = gameManager.currentPlayer;
   }
 
   /// Håndterer trykk på et kort. Kan kun velges hvis en brikke allerede er valgt.
@@ -98,8 +104,9 @@ class _DogBoardState extends State<DogBoard> {
         setState(() {
           selectedCard = null;
           selectedPiece = null;
-          gameManager.passTurn(); // Bytter til neste spiller
-          myPlayerNumber = gameManager.currentPlayer; // Oppdaterer spilleren som vises
+          // passTurn() kalles allerede inni playCard(), men vi må oppdatere
+          // myPlayerNumber for å rotere brettet.
+          myPlayerNumber = gameManager.currentPlayer;
         });
       } else {
         // Ugyldig trekk, kan eventuelt vise en melding
@@ -112,7 +119,8 @@ class _DogBoardState extends State<DogBoard> {
   void _handlePassButton() {
     setState(() {
       gameManager.passTurn();
-      myPlayerNumber = gameManager.currentPlayer; // Oppdaterer spilleren som vises
+      // Oppdater myPlayerNumber for å rotere brettet til neste spiller
+      myPlayerNumber = gameManager.currentPlayer;
       // Nullstill valg etter at turen er over
       selectedCard = null;
       selectedPiece = null;
@@ -703,6 +711,9 @@ class _DogBoardState extends State<DogBoard> {
                           // Markerer valgt brikke
                           final bool isSelected = selectedPiece == piece;
 
+                          // Sjekker om brikken er i startområdet for å endre utseendet
+                          final bool isInStartArea = field.type == 'start';
+
                           return Positioned(
                             left: pos.dx - pieceSize / 2,
                             top: pos.dy - pieceSize / 2,
@@ -712,6 +723,8 @@ class _DogBoardState extends State<DogBoard> {
                                 color: color,
                                 size: pieceSize,
                                 isSelected: isSelected,
+                                // Ny egenskap for å markere at brikken er i spill
+                                isInPlay: !isInStartArea,
                               ),
                             ),
                           );
@@ -735,7 +748,7 @@ class _DogBoardState extends State<DogBoard> {
                         width: boxWidth,
                         isMe: true,
                         isCurrentPlayer: gameManager.currentPlayer == boxOrder[0],
-                        hand: gameManager.playerHands[myPlayerNumber - 1],
+                        hand: gameManager.playerHands[boxOrder[0] - 1],
                       ),
                   ),
                   // VENSTRE
