@@ -205,8 +205,8 @@ return Stack(
           children: [
             // KORTBUNKE OG TELLER (NY POSISJON)
             Positioned(
-              left: boardOrigin.dx - 220,
-              top: boardOrigin.dy + 10,
+              left: boardOrigin.dx - 190,
+              top: boardOrigin.dy - 5,
               child: Column( // Column er fint her, da den ikke er Positioned.
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -214,7 +214,7 @@ return Stack(
                   Container(
                     width: 130,
                     height: 170,
-                    margin: const EdgeInsets.only(bottom: 20),
+                    margin: const EdgeInsets.only(bottom: 15),
                     child: Stack(
                       children: [
                         for (int i = 2; i >= 0; i--)
@@ -263,7 +263,7 @@ return Stack(
                   ),
                   // TELLER
                   Container(
-                    width: 100,
+                    width: 90,
                     height: 70,
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -289,8 +289,8 @@ return Stack(
 
             // HÅNDKORTENE DINE (3 rader á 2 kort) - FLYTTET HIT!
             Positioned(
-              left: boardOrigin.dx - 220, // flytt så langt til venstre du ønsker
-              top: boardOrigin.dy + 210, // må stå under bunke/teller (juster om nødvendig)
+              left: boardOrigin.dx - 240, // flytt så langt til venstre du ønsker
+              top: boardOrigin.dy + 270, // må stå under bunke/teller (juster om nødvendig)
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: List.generate(3, (row) {
