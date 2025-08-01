@@ -26,8 +26,8 @@ class _DogBoardState extends State<DogBoard> {
   DogCard? hoveredCard;
   DogPiece? selectedPiece; // Holder styr på hvilken brikke som er valgt
 
-  /// Hvilken spiller vises NEDERST (1=1, 2=2, ...)
-  final int myPlayerNumber = 1;
+  /// Hvilken spiller vises NEDERST. Oppdateres for å simulere bytte av spiller.
+  int myPlayerNumber = 1;
 
   final Map<int, Color> playerStartColor = {
     1: Colors.red,
@@ -47,6 +47,12 @@ class _DogBoardState extends State<DogBoard> {
   void _handleCardTap(DogCard card) {
     if (selectedPiece == null) {
       print("Velg en brikke først.");
+      return;
+    }
+
+    // Bare tillat kortvalg for den aktive spilleren
+    if (gameManager.currentPlayer != myPlayerNumber) {
+      print("Det er ikke din tur.");
       return;
     }
 
@@ -92,6 +98,8 @@ class _DogBoardState extends State<DogBoard> {
         setState(() {
           selectedCard = null;
           selectedPiece = null;
+          gameManager.passTurn(); // Bytter til neste spiller
+          myPlayerNumber = gameManager.currentPlayer; // Oppdaterer spilleren som vises
         });
       } else {
         // Ugyldig trekk, kan eventuelt vise en melding
@@ -104,6 +112,7 @@ class _DogBoardState extends State<DogBoard> {
   void _handlePassButton() {
     setState(() {
       gameManager.passTurn();
+      myPlayerNumber = gameManager.currentPlayer; // Oppdaterer spilleren som vises
       // Nullstill valg etter at turen er over
       selectedCard = null;
       selectedPiece = null;
@@ -722,12 +731,12 @@ class _DogBoardState extends State<DogBoard> {
                     bottom: boxHeight * 0.2,
                     left: (boardSide - boxWidth) / 2,
                     child: PlayerHandBox(
-                      player: boxOrder[0],
-                      width: boxWidth,
-                      isMe: true,
-                      isCurrentPlayer: gameManager.currentPlayer == boxOrder[0],
-                      hand: gameManager.playerHands[myPlayerNumber - 1],
-                    ),
+                        player: boxOrder[0],
+                        width: boxWidth,
+                        isMe: true,
+                        isCurrentPlayer: gameManager.currentPlayer == boxOrder[0],
+                        hand: gameManager.playerHands[myPlayerNumber - 1],
+                      ),
                   ),
                   // VENSTRE
                   Positioned(
@@ -736,11 +745,11 @@ class _DogBoardState extends State<DogBoard> {
                     child: Transform.rotate(
                       angle: -pi / 2,
                       child: PlayerHandBox(
-                        player: boxOrder[1],
-                        width: boxWidth,
-                        isCurrentPlayer: gameManager.currentPlayer == boxOrder[1],
-                        hand: gameManager.playerHands[boxOrder[1] - 1],
-                      ),
+                          player: boxOrder[1],
+                          width: boxWidth,
+                          isCurrentPlayer: gameManager.currentPlayer == boxOrder[1],
+                          hand: gameManager.playerHands[boxOrder[1] - 1],
+                        ),
                     ),
                   ),
                   // TOPP
@@ -750,11 +759,11 @@ class _DogBoardState extends State<DogBoard> {
                     child: Transform.rotate(
                       angle: pi * 2,
                       child: PlayerHandBox(
-                        player: boxOrder[2],
-                        width: boxWidth,
-                        isCurrentPlayer: gameManager.currentPlayer == boxOrder[2],
-                        hand: gameManager.playerHands[boxOrder[2] - 1],
-                      ),
+                          player: boxOrder[2],
+                          width: boxWidth,
+                          isCurrentPlayer: gameManager.currentPlayer == boxOrder[2],
+                          hand: gameManager.playerHands[boxOrder[2] - 1],
+                        ),
                     ),
                   ),
                   // HØYRE
@@ -764,11 +773,11 @@ class _DogBoardState extends State<DogBoard> {
                     child: Transform.rotate(
                       angle: pi / 2,
                       child: PlayerHandBox(
-                        player: boxOrder[3],
-                        width: boxWidth,
-                        isCurrentPlayer: gameManager.currentPlayer == boxOrder[3],
-                        hand: gameManager.playerHands[boxOrder[3] - 1],
-                      ),
+                          player: boxOrder[3],
+                          width: boxWidth,
+                          isCurrentPlayer: gameManager.currentPlayer == boxOrder[3],
+                          hand: gameManager.playerHands[boxOrder[3] - 1],
+                        ),
                     ),
                   ),
                 ],
