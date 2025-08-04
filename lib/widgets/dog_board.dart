@@ -18,6 +18,15 @@ class DogBoard extends StatefulWidget {
   State<DogBoard> createState() => _DogBoardState();
 }
 
+class SevenMoveStep {
+  final DogPiece piece;
+  final int steps;
+  final int fromIndex;
+  final int toIndex;
+  SevenMoveStep(this.piece, this.steps, this.fromIndex, this.toIndex);
+}
+
+
 class _DogBoardState extends State<DogBoard> {
   late List<Field> fields;
   late GameManager gameManager;
@@ -28,6 +37,12 @@ class _DogBoardState extends State<DogBoard> {
   int? selectedMoveValue; // Brukes kun ved 4-kort
 
   int myPlayerNumber = 1;
+
+  bool inSevenMode = false;
+int remainingSevenSteps = 7;
+List<SevenMoveStep> sevenMoves = [];
+DogCard? selectedSevenCard;
+
 
   final Map<int, Color> playerStartColor = {
     1: Colors.red,
@@ -107,27 +122,40 @@ class _DogBoardState extends State<DogBoard> {
   }
 
   void _handleCardTap(DogCard card) {
-    if (selectedPiece == null) {
-      print("Velg en brikke først.");
-      return;
-    }
-    if (gameManager.currentPlayer != myPlayerNumber) {
-      print("Det er ikke din tur.");
-      return;
-    }
-    final playable = getPlayableCards(selectedPiece).contains(card);
-    if (!playable) return;
-
-    setState(() {
-      if (selectedCard == card) {
-        selectedCard = null;
-        selectedMoveValue = null;
-      } else {
-        selectedCard = card;
-        selectedMoveValue = null;
-      }
-    });
+  if (selectedPiece == null) {
+    print("Velg en brikke først.");
+    return;
   }
+  if (gameManager.currentPlayer != myPlayerNumber) {
+    print("Det er ikke din tur.");
+    return;
+  }
+  final playable = getPlayableCards(selectedPiece).contains(card);
+  if (!playable) return;
+
+  setState(() {
+    if (card.rank == 7) {
+      // Aktiver syver-modus
+      inSevenMode = true;
+      remainingSevenSteps = 7;
+      sevenMoves = [];
+      selectedSevenCard = card;
+      // Vi tillater at ingen annen state er valgt
+      selectedCard = card;
+      selectedMoveValue = null;
+      // Ikke velg brikke nå, vi gjør det i neste steg
+    } else {
+      // Vanlig kort
+      selectedCard = card;
+      selectedMoveValue = null;
+      inSevenMode = false;
+      selectedSevenCard = null;
+      sevenMoves = [];
+      remainingSevenSteps = 0;
+    }
+  });
+}
+
 
   void _handlePieceTap(DogPiece piece) {
     if (piece.player != gameManager.currentPlayer) return;
@@ -395,6 +423,7 @@ class _DogBoardState extends State<DogBoard> {
                                   ),
                                   elevation: 5,
                                 ),
+                                
                                 child: Text(
                                   'Bekreft trekk',
                                   style: TextStyle(
@@ -426,6 +455,19 @@ class _DogBoardState extends State<DogBoard> {
                                   ),
                                 ),
                               ),
+                              if (inSevenMode)
+  Padding(
+    padding: const EdgeInsets.only(bottom: 8.0),
+    child: Text(
+      "Syvermodus: $remainingSevenSteps steg igjen",
+      style: TextStyle(
+        fontSize: 20,
+        color: Colors.deepPurple,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+  ),
+
                             Visibility(
                               visible: isMyTurn && !canMove,
                               child: ElevatedButton(
