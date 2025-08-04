@@ -12,73 +12,6 @@ import 'dog_piece_widget.dart';
 import '../dog_card.dart';
 import '../models/piece.dart';
 
-class AnimatedPulseGlow extends StatefulWidget {
-  final Widget child;
-  final double size;
-  final Color color;
-
-  const AnimatedPulseGlow({
-    super.key,
-    required this.child,
-    required this.size,
-    required this.color,
-  });
-
-  @override
-  State<AnimatedPulseGlow> createState() => _AnimatedPulseGlowState();
-}
-
-class _AnimatedPulseGlowState extends State<AnimatedPulseGlow>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final pulse = Tween<double>(begin: 0.45, end: 0.9).transform(_controller.value);
-        final opacity = Tween<double>(begin: 0.5, end: 0.93).transform(_controller.value);
-        return Stack(
-          alignment: Alignment.center,
-          children: [
-            Container(
-              width: widget.size,
-              height: widget.size,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: widget.color.withOpacity(opacity),
-                    blurRadius: widget.size * 0.45 * (0.7 + pulse),
-                    spreadRadius: widget.size * pulse * 0.4,
-                  ),
-                ],
-              ),
-            ),
-            widget.child,
-          ],
-        );
-      },
-    );
-  }
-}
-
 class DogBoard extends StatefulWidget {
   const DogBoard({super.key});
   @override
@@ -92,6 +25,7 @@ class _DogBoardState extends State<DogBoard> {
   DogCard? selectedCard;
   DogCard? hoveredCard;
   DogPiece? selectedPiece;
+  int? selectedMoveValue; // Brukes kun ved 4-kort
 
   int myPlayerNumber = 1;
 
@@ -115,6 +49,63 @@ class _DogBoardState extends State<DogBoard> {
     return moves.map((m) => m.piece).toSet();
   }
 
+  Set<DogCard> getPlayableCards(DogPiece? piece) {
+    if (piece == null) return {};
+    return gameManager.playerHands[myPlayerNumber - 1]
+        .where((card) => gameManager.canPieceMove(piece, card))
+        .toSet();
+  }
+
+  DogPiece? getTargetedEnemyPiece({int? moveValueOverride}) {
+    if (selectedCard == null || selectedPiece == null) return null;
+
+    int player = myPlayerNumber;
+    DogPiece piece = selectedPiece!;
+    Field field = fields[piece.fieldIndex];
+
+    int boardMainFieldIndex = fields.asMap().entries
+        .firstWhere((entry) =>
+            entry.value.player == player && entry.value.type == 'immunity')
+        .key;
+
+    int newFieldIndex;
+    int boardSize = 64;
+    int? moveValue;
+    if (selectedCard!.rank == 4) {
+      // Bruk valgt retning hvis valgt
+      moveValue = moveValueOverride ?? selectedMoveValue;
+      if (moveValue == null) return null;
+    } else {
+      moveValue = selectedCard!.rank ?? 0;
+    }
+
+    if (field.type == 'start') {
+      if (selectedCard!.rank == 1 ||
+          selectedCard!.rank == 13 ||
+          selectedCard!.suit == Suit.joker) {
+        newFieldIndex = boardMainFieldIndex;
+      } else {
+        return null;
+      }
+    } else {
+      newFieldIndex = piece.fieldIndex + moveValue;
+      if (newFieldIndex >= boardSize) {
+        newFieldIndex = newFieldIndex % boardSize;
+      } else if (newFieldIndex < 0) {
+        newFieldIndex = boardSize + newFieldIndex;
+      }
+    }
+
+    final occupyingPiece = gameManager.pieces.firstWhere(
+      (p) => p.fieldIndex == newFieldIndex,
+      orElse: () => DogPiece(player: -1, fieldIndex: -1),
+    );
+    if (occupyingPiece.player != -1 && occupyingPiece.player != myPlayerNumber) {
+      return occupyingPiece;
+    }
+    return null;
+  }
+
   void _handleCardTap(DogCard card) {
     if (selectedPiece == null) {
       print("Velg en brikke først.");
@@ -124,56 +115,80 @@ class _DogBoardState extends State<DogBoard> {
       print("Det er ikke din tur.");
       return;
     }
+    final playable = getPlayableCards(selectedPiece).contains(card);
+    if (!playable) return;
+
     setState(() {
       if (selectedCard == card) {
         selectedCard = null;
+        selectedMoveValue = null;
       } else {
         selectedCard = card;
+        selectedMoveValue = null;
       }
     });
   }
 
   void _handlePieceTap(DogPiece piece) {
-    if (piece.player != gameManager.currentPlayer) {
-      print("Kan ikke flytte brikker fra andre spillere.");
-      return;
-    }
+    if (piece.player != gameManager.currentPlayer) return;
+    final movable = getMovablePieces(myPlayerNumber).contains(piece);
+    if (!movable) return;
     setState(() {
       if (selectedPiece == piece) {
         selectedPiece = null;
         selectedCard = null;
+        selectedMoveValue = null;
       } else {
         selectedPiece = piece;
         selectedCard = null;
+        selectedMoveValue = null;
       }
     });
   }
 
-  void _handlePlayCardButton() {
-    if (selectedCard != null && selectedPiece != null) {
-      final bool moveSuccessful = gameManager.playCard(
-        gameManager.currentPlayer,
-        selectedCard!,
-        selectedPiece!,
-      );
-      if (moveSuccessful) {
-        setState(() {
-          selectedCard = null;
-          selectedPiece = null;
-          myPlayerNumber = gameManager.currentPlayer;
-        });
-      } else {
-        print("Ugyldig trekk med valgt kort og brikke.");
-      }
-    }
+  void _handleMoveChoice(int value) {
+    setState(() {
+      selectedMoveValue = value;
+    });
   }
 
+ void _handlePlayCardButton() {
+  if (selectedCard != null && selectedPiece != null) {
+    int moveValue = selectedCard!.rank ?? 0;
+    if (selectedCard!.rank == 4) {
+      if (selectedMoveValue == null) {
+        print("Velg retning for 4-kortet.");
+        return;
+      }
+      moveValue = selectedMoveValue!;
+    }
+
+    final bool moveSuccessful = gameManager.playCard(
+      gameManager.currentPlayer,
+      selectedCard!,
+      selectedPiece!,
+      moveValue,
+    );
+
+    if (moveSuccessful) {
+      setState(() {
+        selectedCard = null;
+        selectedPiece = null;
+        selectedMoveValue = null;
+        myPlayerNumber = gameManager.currentPlayer;
+      });
+    } else {
+      print("Ugyldig trekk med valgt kort og brikke.");
+    }
+  }
+}
   void _handlePassButton() {
     setState(() {
       gameManager.passTurn();
       myPlayerNumber = gameManager.currentPlayer;
       selectedCard = null;
       selectedPiece = null;
+      selectedMoveValue = null;
     });
   }
 
@@ -255,6 +270,7 @@ class _DogBoardState extends State<DogBoard> {
     final bool canPlayCard = isMyTurn && selectedCard != null && selectedPiece != null;
 
     final movablePieces = getMovablePieces(myPlayerNumber);
+    final targetedEnemyPiece = getTargetedEnemyPiece();
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -318,12 +334,57 @@ class _DogBoardState extends State<DogBoard> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        // ---- KNAPPER START ----
                         Stack(
                           alignment: Alignment.center,
                           children: [
-                            Visibility(
-                              visible: canPlayCard,
-                              child: ElevatedButton(
+                            // 4-kort: Velg frem/bak-knapper vertikalt, deretter bekreft
+                            if (canPlayCard && selectedCard != null && selectedCard!.rank == 4 && selectedMoveValue == null)
+                              Column(
+                                children: [
+                                  ElevatedButton(
+                                    onPressed: () => _handleMoveChoice(4),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      elevation: 5,
+                                    ),
+                                    child: Text(
+                                      'Fremover (+4)',
+                                      style: TextStyle(
+                                        fontSize: buttonFontSize,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ElevatedButton(
+                                    onPressed: () => _handleMoveChoice(-4),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.deepOrange,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      elevation: 5,
+                                    ),
+                                    child: Text(
+                                      'Bakover (-4)',
+                                      style: TextStyle(
+                                        fontSize: buttonFontSize,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            else if (canPlayCard && selectedCard != null && selectedCard!.rank == 4 && selectedMoveValue != null)
+                              ElevatedButton(
                                 onPressed: _handlePlayCardButton,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.orange,
@@ -335,14 +396,36 @@ class _DogBoardState extends State<DogBoard> {
                                   elevation: 5,
                                 ),
                                 child: Text(
-                                  'Spill kort',
+                                  'Bekreft trekk',
                                   style: TextStyle(
                                     fontSize: buttonFontSize,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
+                              )
+                            else
+                              Visibility(
+                                visible: canPlayCard,
+                                child: ElevatedButton(
+                                  onPressed: _handlePlayCardButton,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.orange,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    elevation: 5,
+                                  ),
+                                  child: Text(
+                                    'Spill kort',
+                                    style: TextStyle(
+                                      fontSize: buttonFontSize,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
                             Visibility(
                               visible: isMyTurn && !canMove,
                               child: ElevatedButton(
@@ -367,6 +450,7 @@ class _DogBoardState extends State<DogBoard> {
                             ),
                           ],
                         ),
+                        // ---- KNAPPER SLUTT ----
                         const SizedBox(width: 20),
                         Column(
                           mainAxisSize: MainAxisSize.min,
@@ -466,82 +550,13 @@ class _DogBoardState extends State<DogBoard> {
                               }
                               final card = hand[cardIdx];
                               final isSelected = card == selectedCard;
-                              final playableCards = selectedPiece != null
-                                  ? gameManager.playerHands[myPlayerNumber - 1]
-                                      .where((card) => gameManager.canPieceMove(selectedPiece!, card))
-                                      .toSet()
-                                  : <DogCard>{};
+                              final playableCards = getPlayableCards(selectedPiece);
                               final isPlayable = selectedPiece != null && playableCards.contains(card);
-                              Widget cardContent = AnimatedContainer(
-                                duration: const Duration(milliseconds: 100),
-                                width: cardWidth,
-                                height: cardHeight,
-                                margin: EdgeInsets.symmetric(horizontal: handCardSpacing),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? Colors.orange
-                                      : (hoveredCard == card && selectedPiece != null)
-                                          ? hoverColor
-                                          : Colors.white,
-                                  border: Border.all(
-                                    color: isSelected
-                                        ? Colors.orange
-                                        : (hoveredCard == card && selectedPiece != null)
-                                            ? playerColor
-                                            : Colors.black26,
-                                    width: isSelected
-                                        ? 3
-                                        : (hoveredCard == card && selectedPiece != null)
-                                            ? 2.3
-                                            : 1.5,
-                                  ),
-                                  borderRadius: BorderRadius.circular(10),
-                                  boxShadow: [
-                                    if (isSelected)
-                                      BoxShadow(
-                                        color: Colors.orange,
-                                        blurRadius: 7,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    if (hoveredCard == card && !isSelected && selectedPiece != null)
-                                      BoxShadow(
-                                        color: playerColor.withAlpha(51),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                  ],
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    card.toString(),
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: cardWidth * 0.25,
-                                      color: card.suit == Suit.hearts || card.suit == Suit.diamonds
-                                          ? Colors.red
-                                          : Colors.black,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              );
-                              if (isPlayable) {
-                                cardContent = Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    IgnorePointer(
-                                      child: AnimatedPulseGlow(
-                                        size: cardWidth,
-                                        color: const Color.fromARGB(255, 5, 240, 17),
-                                        child: SizedBox(width: cardWidth, height: cardHeight),
-                                      ),
-                                    ),
-                                    cardContent,
-                                  ],
-                                );
-                              }
+
                               return MouseRegion(
-                                cursor: SystemMouseCursors.click,
+                                cursor: (isPlayable && selectedPiece != null)
+                                    ? SystemMouseCursors.click
+                                    : SystemMouseCursors.forbidden,
                                 onEnter: (_) {
                                   setState(() {
                                     hoveredCard = card;
@@ -554,11 +569,68 @@ class _DogBoardState extends State<DogBoard> {
                                 },
                                 child: GestureDetector(
                                   onTap: () {
-                                    if (selectedPiece != null) {
+                                    if (isPlayable && selectedPiece != null) {
                                       _handleCardTap(card);
                                     }
                                   },
-                                  child: cardContent,
+                                  child: Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      AnimatedContainer(
+                                        duration: const Duration(milliseconds: 100),
+                                        width: cardWidth,
+                                        height: cardHeight,
+                                        margin: EdgeInsets.symmetric(
+                                          horizontal: handCardSpacing,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? Colors.orange
+                                              : (hoveredCard == card && isPlayable)
+                                                  ? hoverColor
+                                                  : Colors.white,
+                                          border: Border.all(
+                                            color: isSelected
+                                                ? Colors.orange
+                                                : (isPlayable
+                                                    ? Colors.green
+                                                    : Colors.black26),
+                                            width: isSelected
+                                                ? 3
+                                                : (isPlayable ? 2.3 : 1.5),
+                                          ),
+                                          borderRadius: BorderRadius.circular(10),
+                                          boxShadow: [
+                                            if (isSelected)
+                                              BoxShadow(
+                                                color: Colors.orange,
+                                                blurRadius: 7,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            if (hoveredCard == card && !isSelected && isPlayable)
+                                              BoxShadow(
+                                                color: playerColor.withAlpha(51),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 3),
+                                              ),
+                                          ],
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            card.toString(),
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: cardWidth * 0.25,
+                                              color: card.suit == Suit.hearts || card.suit == Suit.diamonds
+                                                  ? Colors.red
+                                                  : Colors.black,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               );
                             }),
@@ -603,8 +675,9 @@ class _DogBoardState extends State<DogBoard> {
                           if (f.type == 'start') size *= startMultiplier;
 
                           Color color;
-                          if (f.type == 'immunity' ||
-                              f.type == 'goal' ||
+                          if (f.type == 'immunity') {
+                            color = Colors.black; // Endret til sort
+                          } else if (f.type == 'goal' ||
                               f.type == 'start') {
                             color = playerStartColor[f.player] ?? Colors.green;
                           } else {
@@ -699,49 +772,70 @@ class _DogBoardState extends State<DogBoard> {
                             field.relPos.dx * boardSide,
                             field.relPos.dy * boardSide,
                           );
-                          Color color = playerStartColor[piece.player] ?? Colors.black;
-
-                          final bool isSelected = selectedPiece == piece;
-                          final bool isInStartArea = field.type == 'start';
                           final bool isMine = piece.player == myPlayerNumber;
+                          final bool isSelected = selectedPiece == piece;
                           final bool canMovePiece = movablePieces.contains(piece);
 
-                          Widget innerPiece = DogPieceWidget(
-                            color: color,
-                            size: pieceSize,
-                            isSelected: isSelected,
-                            isInPlay: !isInStartArea,
-                          );
-
-                          if (isMine && !canMovePiece && isMyTurn) {
-                            innerPiece = Opacity(opacity: 0.38, child: innerPiece);
+                          // Outline-farge
+                          Color outlineColor;
+                          if (isMine && canMovePiece && isMyTurn) {
+                            outlineColor = isSelected ? Colors.orange : Colors.green;
+                          } else if (!isMine) {
+                            outlineColor = Colors.grey;
+                          } else {
+                            outlineColor = Colors.grey.shade300;
                           }
 
-                          // Wrap med GestureDetector for dine klikkbare brikker
-                          if (isMine && isMyTurn && canMovePiece) {
-                            innerPiece = GestureDetector(
-                              onTap: () => _handlePieceTap(piece),
-                              child: innerPiece,
+                          // Hodeskalle-visning hvis brikke slås ut
+                          bool showSkull = false;
+                          if (targetedEnemyPiece != null && piece == targetedEnemyPiece) {
+                            showSkull = true;
+                          }
+
+                          Widget pieceWidget;
+                          if (showSkull) {
+                            pieceWidget = Center(
+                              child: Text(
+                                "💀",
+                                style: TextStyle(
+                                  fontSize: pieceSize * 0.95,
+                                  color: Colors.red[700],
+                                  fontWeight: FontWeight.bold,
+                                  shadows: [
+                                    Shadow(
+                                      blurRadius: 4,
+                                      color: Colors.black.withAlpha(180),
+                                      offset: Offset(1, 2),
+                                    ),
+                                  ],
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            );
+                          } else {
+                            pieceWidget = DogPieceWidget(
+                              color: playerStartColor[piece.player] ?? Colors.black,
+                              size: pieceSize,
+                              isSelected: isSelected,
+                              isInPlay: field.type != 'start',
+                              outlineColor: outlineColor,
                             );
                           }
 
-                          // Nytt: PULSERENDE GLOW på alle dine brikker med mulig trekk
-                          Widget result = innerPiece;
-                          if (isMine && canMovePiece && isMyTurn) {
-                            result = AnimatedPulseGlow(
-                              child: innerPiece,
-                              size: pieceSize,
-                              color: const Color.fromARGB(255, 5, 240, 17),
+                          // Gjør brikken klikkbar hvis det er din og du kan flytte den
+                          if (isMine && canMovePiece && isMyTurn && !showSkull) {
+                            pieceWidget = GestureDetector(
+                              onTap: () => _handlePieceTap(piece),
+                              child: pieceWidget,
                             );
                           }
 
                           return Positioned(
                             left: pos.dx - pieceSize / 2,
                             top: pos.dy - pieceSize / 2,
-                            child: result,
+                            child: pieceWidget,
                           );
                         }),
-                        // Midtboksen
                         Transform.rotate(
                           angle: -getBoardRotation(myPlayerNumber),
                           child: CenterBox(width: boardSide * 0.25),

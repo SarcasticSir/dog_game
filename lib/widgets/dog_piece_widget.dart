@@ -4,43 +4,54 @@ class DogPieceWidget extends StatelessWidget {
   final Color color;
   final double size;
   final bool isSelected;
-  // Ny egenskap for å skille brikker som er i spill fra de i startområdet
   final bool isInPlay;
+  final Color outlineColor;
 
   const DogPieceWidget({
     super.key,
     required this.color,
     required this.size,
-    this.isSelected = false,
-    this.isInPlay = false,
+    required this.isSelected,
+    required this.isInPlay,
+    required this.outlineColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Definere kanten og skyggen basert på om brikken er i spill
-    final double borderWidth = isInPlay ? size * 0.15 : size * 0.08;
-    final double shadowBlurRadius = isInPlay ? 8 : 4;
+    double outlineWidth = isSelected ? size * 0.13 : size * 0.09;
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOut,
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: isSelected ? Colors.orange : Colors.white,
-          width: isSelected ? size * 0.2 : borderWidth,
-        ),
-        boxShadow: [
-          BoxShadow(
-            // Bruker withAlpha for å justere gjennomsiktigheten, i tråd med resten av koden
-            color: isSelected ? Colors.orange.withAlpha((255 * 0.8).round()) : Colors.black26,
-            blurRadius: isSelected ? 12 : shadowBlurRadius,
-            offset: const Offset(2, 3),
+    return Opacity(
+      opacity: isInPlay ? 1.0 : 0.45,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: outlineColor,
+            width: outlineWidth,
           ),
-        ],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(70),
+              blurRadius: size * 0.18,
+              offset: const Offset(1, 2),
+            ),
+          ],
+        ),
+        child: Center(
+          child: isSelected
+              ? Container(
+                  width: size * 0.48,
+                  height: size * 0.48,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(35),
+                    shape: BoxShape.circle,
+                  ),
+                )
+              : null,
+        ),
       ),
     );
   }
