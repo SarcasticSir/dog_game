@@ -1,5 +1,3 @@
-// C:\dev\dog_game\lib\widgets\dog_board.dart
-
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -15,6 +13,74 @@ import 'dog_piece_widget.dart';
 import '../dog_card.dart';
 import '../models/piece.dart';
 
+class AnimatedPulseGlow extends StatefulWidget {
+  final Widget child;
+  final double size;
+  final Color color;
+
+  const AnimatedPulseGlow({
+    super.key,
+    required this.child,
+    required this.size,
+    required this.color,
+  });
+
+  @override
+  State<AnimatedPulseGlow> createState() => _AnimatedPulseGlowState();
+}
+
+class _AnimatedPulseGlowState extends State<AnimatedPulseGlow>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final pulse = Tween<double>(begin: 0.45, end: 0.9).transform(_controller.value);
+        final opacity = Tween<double>(begin: 0.5, end: 0.93).transform(_controller.value);
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              width: widget.size,
+              height: widget.size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                // Ingen border – bare skygge
+                boxShadow: [
+                  BoxShadow(
+                    color: widget.color.withOpacity(opacity),
+                    blurRadius: widget.size * 0.55 * (0.70 + pulse),
+                    spreadRadius: widget.size * pulse,
+                  ),
+                ],
+              ),
+            ),
+            widget.child,
+          ],
+        );
+      },
+    );
+  }
+}
+
 class DogBoard extends StatefulWidget {
   const DogBoard({super.key});
   @override
@@ -27,10 +93,8 @@ class _DogBoardState extends State<DogBoard> {
 
   DogCard? selectedCard;
   DogCard? hoveredCard;
-  DogPiece? selectedPiece; // Holder styr på hvilken brikke som er valgt
+  DogPiece? selectedPiece;
 
-  /// Hvilken spiller vises NEDERST. Denne oppdateres for å simulere bytte av spiller
-  /// og for å rotere brettet riktig.
   int myPlayerNumber = 1;
 
   final Map<int, Color> playerStartColor = {
@@ -45,26 +109,25 @@ class _DogBoardState extends State<DogBoard> {
     super.initState();
     fields = _manualFields();
     gameManager = GameManager(fields: fields);
-    // Sett start-spilleren til å være den første som har turen
     myPlayerNumber = gameManager.currentPlayer;
   }
 
-  /// Håndterer trykk på et kort. Kan kun velges hvis en brikke allerede er valgt.
+  Set<DogPiece> getMovablePieces(int player) {
+    final moves = gameManager.getPossibleMovesForPlayer(player);
+    return moves.map((m) => m.piece).toSet();
+  }
+
   void _handleCardTap(DogCard card) {
     if (selectedPiece == null) {
       print("Velg en brikke først.");
       return;
     }
-
-    // Bare tillat kortvalg for den aktive spilleren
     if (gameManager.currentPlayer != myPlayerNumber) {
       print("Det er ikke din tur.");
       return;
     }
-
     setState(() {
       if (selectedCard == card) {
-        // Avmarker kortet hvis det allerede er valgt
         selectedCard = null;
       } else {
         selectedCard = card;
@@ -72,26 +135,22 @@ class _DogBoardState extends State<DogBoard> {
     });
   }
 
-  /// Håndterer trykk på en brikke
   void _handlePieceTap(DogPiece piece) {
     if (piece.player != gameManager.currentPlayer) {
       print("Kan ikke flytte brikker fra andre spillere.");
       return;
     }
-
     setState(() {
       if (selectedPiece == piece) {
-        // Avmarker brikken hvis den allerede er valgt
         selectedPiece = null;
-        selectedCard = null; // Avmarker også kortet
+        selectedCard = null;
       } else {
         selectedPiece = piece;
-        selectedCard = null; // Nullstill kortvalget for den nye brikken
+        selectedCard = null;
       }
     });
   }
-  
-  /// Håndterer trykk på "Spill kort"-knappen
+
   void _handlePlayCardButton() {
     if (selectedCard != null && selectedPiece != null) {
       final bool moveSuccessful = gameManager.playCard(
@@ -100,28 +159,21 @@ class _DogBoardState extends State<DogBoard> {
         selectedPiece!,
       );
       if (moveSuccessful) {
-        // Nullstill valg etter et vellykket trekk
         setState(() {
           selectedCard = null;
           selectedPiece = null;
-          // passTurn() kalles allerede inni playCard(), men vi må oppdatere
-          // myPlayerNumber for å rotere brettet.
           myPlayerNumber = gameManager.currentPlayer;
         });
       } else {
-        // Ugyldig trekk, kan eventuelt vise en melding
         print("Ugyldig trekk med valgt kort og brikke.");
       }
     }
   }
 
-  /// Håndterer trykk på "Pass"-knappen
   void _handlePassButton() {
     setState(() {
       gameManager.passTurn();
-      // Oppdater myPlayerNumber for å rotere brettet til neste spiller
       myPlayerNumber = gameManager.currentPlayer;
-      // Nullstill valg etter at turen er over
       selectedCard = null;
       selectedPiece = null;
     });
@@ -196,22 +248,18 @@ class _DogBoardState extends State<DogBoard> {
     ];
 
     final List<Field> startFields = [
-      // ØVERST VENSTRE (spiller 1)
       Field(Offset(0.04, 0.08), 'start', startNumber: 1, player: 1),
       Field(Offset(0.04, 0.14), 'start', startNumber: 2, player: 1),
       Field(Offset(0.04, 0.20), 'start', startNumber: 3, player: 1),
       Field(Offset(0.04, 0.26), 'start', startNumber: 4, player: 1),
-      // ØVERST HØYRE (spiller 2)
       Field(Offset(0.92, 0.04), 'start', startNumber: 1, player: 2),
       Field(Offset(0.86, 0.04), 'start', startNumber: 2, player: 2),
       Field(Offset(0.80, 0.04), 'start', startNumber: 3, player: 2),
       Field(Offset(0.74, 0.04), 'start', startNumber: 4, player: 2),
-      // NEDERST HØYRE (spiller 3)
       Field(Offset(0.96, 0.92), 'start', startNumber: 1, player: 3),
       Field(Offset(0.96, 0.86), 'start', startNumber: 2, player: 3),
       Field(Offset(0.96, 0.80), 'start', startNumber: 3, player: 3),
       Field(Offset(0.96, 0.74), 'start', startNumber: 4, player: 3),
-      // NEDERST VENSTRE (spiller 4)
       Field(Offset(0.08, 0.96), 'start', startNumber: 1, player: 4),
       Field(Offset(0.14, 0.96), 'start', startNumber: 2, player: 4),
       Field(Offset(0.20, 0.96), 'start', startNumber: 3, player: 4),
@@ -219,22 +267,18 @@ class _DogBoardState extends State<DogBoard> {
     ];
 
     final List<Field> goalFields = [
-      // Spiller 1
       Field(Offset(0.17, 0.17), 'goal', goalNumber: 1, player: 1),
       Field(Offset(0.21, 0.21), 'goal', goalNumber: 2, player: 1),
       Field(Offset(0.25, 0.25), 'goal', goalNumber: 3, player: 1),
       Field(Offset(0.29, 0.29), 'goal', goalNumber: 4, player: 1),
-      // Spiller 2
       Field(Offset(0.83, 0.17), 'goal', goalNumber: 1, player: 2),
       Field(Offset(0.79, 0.21), 'goal', goalNumber: 2, player: 2),
       Field(Offset(0.75, 0.25), 'goal', goalNumber: 3, player: 2),
       Field(Offset(0.71, 0.29), 'goal', goalNumber: 4, player: 2),
-      // Spiller 3
       Field(Offset(0.83, 0.83), 'goal', goalNumber: 1, player: 3),
       Field(Offset(0.79, 0.79), 'goal', goalNumber: 2, player: 3),
       Field(Offset(0.75, 0.75), 'goal', goalNumber: 3, player: 3),
       Field(Offset(0.71, 0.71), 'goal', goalNumber: 4, player: 3),
-      // Spiller 4
       Field(Offset(0.17, 0.83), 'goal', goalNumber: 1, player: 4),
       Field(Offset(0.21, 0.79), 'goal', goalNumber: 2, player: 4),
       Field(Offset(0.25, 0.75), 'goal', goalNumber: 3, player: 4),
@@ -251,12 +295,12 @@ class _DogBoardState extends State<DogBoard> {
           player: (i == 0)
               ? 1
               : (i == 16)
-              ? 2
-              : (i == 32)
-              ? 3
-              : (i == 48)
-              ? 4
-              : null,
+                  ? 2
+                  : (i == 32)
+                      ? 3
+                      : (i == 48)
+                          ? 4
+                          : null,
         ),
       ...startFields,
       ...goalFields,
@@ -265,10 +309,11 @@ class _DogBoardState extends State<DogBoard> {
 
   @override
   Widget build(BuildContext context) {
-    // Sjekk om det er din tur og om du har mulige trekk
     final bool canMove = gameManager.getPossibleMovesForPlayer(myPlayerNumber).isNotEmpty;
     final bool isMyTurn = gameManager.currentPlayer == myPlayerNumber;
     final bool canPlayCard = isMyTurn && selectedCard != null && selectedPiece != null;
+
+    final movablePieces = getMovablePieces(myPlayerNumber);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -304,22 +349,18 @@ class _DogBoardState extends State<DogBoard> {
         double pieceSize = baseFieldSize * 0.8;
         final double boxWidth = boardSide * 0.23;
         final double boxHeight = boxWidth * 0.60;
-        
-        // Fast størrelse for kortene
         final double cardWidth = boardSide * 0.12;
         final double cardHeight = cardWidth * 1.4;
         final double handCardSpacing = cardWidth * 0.05;
-        
-        // Responsiv størrelse for knapper
         final double buttonFontSize = constraints.maxHeight * 0.025;
-        
+
         List<int> boxOrder = [
           myPlayerNumber,
           (myPlayerNumber % 4) + 1,
           ((myPlayerNumber + 1) % 4) + 1,
           ((myPlayerNumber + 2) % 4) + 1,
         ];
-        
+
         final Color playerColor = playerStartColor[myPlayerNumber]!;
         final Color hoverColor = playerColor.withAlpha(51);
 
@@ -327,18 +368,15 @@ class _DogBoardState extends State<DogBoard> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Venstre sidepanel for kort og "Pass"-knapp
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // KORTBUNKE OG KNAPPER
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // KNAPPER
                         Stack(
                           alignment: Alignment.center,
                           children: [
@@ -389,7 +427,6 @@ class _DogBoardState extends State<DogBoard> {
                           ],
                         ),
                         const SizedBox(width: 20),
-                        // KORTBUNKE OG TELLER
                         Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -469,7 +506,6 @@ class _DogBoardState extends State<DogBoard> {
                       ],
                     ),
                     const SizedBox(height: 30),
-                    // HÅNDKORTENE DINE
                     Column(
                       mainAxisSize: MainAxisSize.min,
                       children: List.generate(3, (row) {
@@ -503,7 +539,6 @@ class _DogBoardState extends State<DogBoard> {
                                 },
                                 child: GestureDetector(
                                   onTap: () {
-                                    // Tillat kun å velge kort hvis en brikke er valgt
                                     if (selectedPiece != null) {
                                       _handleCardTap(card);
                                     }
@@ -573,12 +608,10 @@ class _DogBoardState extends State<DogBoard> {
                   ],
                 ),
               ),
-
               // Midten av Row: Spillbrettet og spillerboksene
               Stack(
                 alignment: Alignment.center,
                 children: [
-                  // Rotert spillbrett
                   Transform.rotate(
                     angle: getBoardRotation(myPlayerNumber),
                     child: Stack(
@@ -699,37 +732,56 @@ class _DogBoardState extends State<DogBoard> {
                           );
                         }),
                         // BRIKKER
-                        ...gameManager.pieces.map((piece) {
-                          final field = fields[piece.fieldIndex];
-                          final pos = Offset(
-                            field.relPos.dx * boardSide,
-                            field.relPos.dy * boardSide,
-                          );
-                          Color color =
-                              playerStartColor[piece.player] ?? Colors.black;
-                          
-                          // Markerer valgt brikke
-                          final bool isSelected = selectedPiece == piece;
+...gameManager.pieces.map((piece) {
+  final field = fields[piece.fieldIndex];
+  final pos = Offset(
+    field.relPos.dx * boardSide,
+    field.relPos.dy * boardSide,
+  );
+  Color color = playerStartColor[piece.player] ?? Colors.black;
 
-                          // Sjekker om brikken er i startområdet for å endre utseendet
-                          final bool isInStartArea = field.type == 'start';
+  final bool isSelected = selectedPiece == piece;
+  final bool isInStartArea = field.type == 'start';
+  final bool isMine = piece.player == myPlayerNumber;
+  final bool canMovePiece = movablePieces.contains(piece);
 
-                          return Positioned(
-                            left: pos.dx - pieceSize / 2,
-                            top: pos.dy - pieceSize / 2,
-                            child: GestureDetector(
-                              onTap: () => _handlePieceTap(piece),
-                              child: DogPieceWidget(
-                                color: color,
-                                size: pieceSize,
-                                isSelected: isSelected,
-                                // Ny egenskap for å markere at brikken er i spill
-                                isInPlay: !isInStartArea,
-                              ),
-                            ),
-                          );
-                        }),
-                        // Brettets midt-boks
+  Widget innerPiece = DogPieceWidget(
+    color: color,
+    size: pieceSize,
+    isSelected: isSelected,
+    isInPlay: !isInStartArea,
+  );
+
+  if (isMine && !canMovePiece && isMyTurn) {
+    innerPiece = Opacity(opacity: 0.38, child: innerPiece);
+  }
+
+  // Wrap med GestureDetector for dine klikkbare brikker
+  if (isMine && isMyTurn && canMovePiece) {
+    innerPiece = GestureDetector(
+      onTap: () => _handlePieceTap(piece),
+      child: innerPiece,
+    );
+  }
+
+  // Nytt: PULSERENDE GLOW på alle dine brikker med mulig trekk
+  Widget result = innerPiece;
+  if (isMine && canMovePiece && isMyTurn) {
+    result = AnimatedPulseGlow(
+      child: innerPiece,
+      size: pieceSize,
+      color: Colors.greenAccent,
+    );
+  }
+
+  return Positioned(
+    left: pos.dx - pieceSize / 2,
+    top: pos.dy - pieceSize / 2,
+    child: result,
+  );
+}),
+
+                        // Midtboksen
                         Transform.rotate(
                           angle: -getBoardRotation(myPlayerNumber),
                           child: CenterBox(width: boardSide * 0.25),
@@ -737,60 +789,55 @@ class _DogBoardState extends State<DogBoard> {
                       ],
                     ),
                   ),
-
-                  // Spillernes handbokser (plassert rundt brettet, men ikke rotert med det)
-                  // BUNN (meg)
+                  // Spillernes handbokser
                   Positioned(
                     bottom: boxHeight * 0.2,
                     left: (boardSide - boxWidth) / 2,
                     child: PlayerHandBox(
-                        player: boxOrder[0],
-                        width: boxWidth,
-                        isMe: true,
-                        isCurrentPlayer: gameManager.currentPlayer == boxOrder[0],
-                        hand: gameManager.playerHands[boxOrder[0] - 1],
-                      ),
+                      player: boxOrder[0],
+                      width: boxWidth,
+                      isMe: true,
+                      isCurrentPlayer: gameManager.currentPlayer == boxOrder[0],
+                      hand: gameManager.playerHands[boxOrder[0] - 1],
+                    ),
                   ),
-                  // VENSTRE
                   Positioned(
                     left: -boxHeight * 0.2,
                     top: (boardSide - boxWidth) / 2 + (boxWidth * 0.2),
                     child: Transform.rotate(
                       angle: -pi / 2,
                       child: PlayerHandBox(
-                          player: boxOrder[1],
-                          width: boxWidth,
-                          isCurrentPlayer: gameManager.currentPlayer == boxOrder[1],
-                          hand: gameManager.playerHands[boxOrder[1] - 1],
-                        ),
+                        player: boxOrder[1],
+                        width: boxWidth,
+                        isCurrentPlayer: gameManager.currentPlayer == boxOrder[1],
+                        hand: gameManager.playerHands[boxOrder[1] - 1],
+                      ),
                     ),
                   ),
-                  // TOPP
                   Positioned(
                     top: boxHeight * 0.2,
                     left: (boardSide - boxWidth) / 2,
                     child: Transform.rotate(
                       angle: pi * 2,
                       child: PlayerHandBox(
-                          player: boxOrder[2],
-                          width: boxWidth,
-                          isCurrentPlayer: gameManager.currentPlayer == boxOrder[2],
-                          hand: gameManager.playerHands[boxOrder[2] - 1],
-                        ),
+                        player: boxOrder[2],
+                        width: boxWidth,
+                        isCurrentPlayer: gameManager.currentPlayer == boxOrder[2],
+                        hand: gameManager.playerHands[boxOrder[2] - 1],
+                      ),
                     ),
                   ),
-                  // HØYRE
                   Positioned(
                     right: -boxHeight * 0.2,
                     top: (boardSide - boxWidth) / 2 + (boxWidth * 0.2),
                     child: Transform.rotate(
                       angle: pi / 2,
                       child: PlayerHandBox(
-                          player: boxOrder[3],
-                          width: boxWidth,
-                          isCurrentPlayer: gameManager.currentPlayer == boxOrder[3],
-                          hand: gameManager.playerHands[boxOrder[3] - 1],
-                        ),
+                        player: boxOrder[3],
+                        width: boxWidth,
+                        isCurrentPlayer: gameManager.currentPlayer == boxOrder[3],
+                        hand: gameManager.playerHands[boxOrder[3] - 1],
+                      ),
                     ),
                   ),
                 ],
