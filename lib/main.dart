@@ -11,7 +11,7 @@ class DogGameApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       home: Scaffold(
-        backgroundColor: Colors.green,
+        backgroundColor: Color.fromARGB(255, 124, 159, 199),
         body: SafeArea(child: DogBoard()),
       ),
     );

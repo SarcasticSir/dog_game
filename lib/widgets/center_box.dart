@@ -11,7 +11,7 @@ class CenterBox extends StatelessWidget {
       height: width * 1,
       decoration: BoxDecoration(
         color: Colors.black87,
-        border: Border.all(color: Colors.white, width: 4),
+        border: Border.all(color: const Color.fromARGB(255, 155, 9, 9), width: 4),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(

@@ -1,5 +1,4 @@
 import 'dart:math';
-
 import 'package:flutter/material.dart';
 
 import '../models/field.dart';
@@ -63,12 +62,11 @@ class _AnimatedPulseGlowState extends State<AnimatedPulseGlow>
               height: widget.size,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                // Ingen border – bare skygge
                 boxShadow: [
                   BoxShadow(
                     color: widget.color.withOpacity(opacity),
-                    blurRadius: widget.size * 0.55 * (0.70 + pulse),
-                    spreadRadius: widget.size * pulse,
+                    blurRadius: widget.size * 0.45 * (0.7 + pulse),
+                    spreadRadius: widget.size * pulse * 0.4,
                   ),
                 ],
               ),
@@ -181,72 +179,17 @@ class _DogBoardState extends State<DogBoard> {
 
   List<Field> _manualFields() {
     final coords = [
-      Offset(0.10, 0.10),
-      Offset(0.15, 0.10),
-      Offset(0.20, 0.10),
-      Offset(0.25, 0.15),
-      Offset(0.30, 0.20),
-      Offset(0.35, 0.25),
-      Offset(0.40, 0.30),
-      Offset(0.45, 0.35),
-      Offset(0.50, 0.35),
-      Offset(0.55, 0.35),
-      Offset(0.60, 0.30),
-      Offset(0.65, 0.25),
-      Offset(0.70, 0.20),
-      Offset(0.75, 0.15),
-      Offset(0.80, 0.10),
-      Offset(0.85, 0.10),
-      Offset(0.90, 0.10),
-      Offset(0.90, 0.15),
-      Offset(0.90, 0.20),
-      Offset(0.85, 0.25),
-      Offset(0.80, 0.30),
-      Offset(0.75, 0.35),
-      Offset(0.70, 0.40),
-      Offset(0.65, 0.45),
-      Offset(0.65, 0.50),
-      Offset(0.65, 0.55),
-      Offset(0.70, 0.60),
-      Offset(0.75, 0.65),
-      Offset(0.80, 0.70),
-      Offset(0.85, 0.75),
-      Offset(0.90, 0.80),
-      Offset(0.90, 0.85),
-      Offset(0.90, 0.90),
-      Offset(0.85, 0.90),
-      Offset(0.80, 0.90),
-      Offset(0.75, 0.85),
-      Offset(0.70, 0.80),
-      Offset(0.65, 0.75),
-      Offset(0.60, 0.70),
-      Offset(0.55, 0.65),
-      Offset(0.50, 0.65),
-      Offset(0.45, 0.65),
-      Offset(0.40, 0.70),
-      Offset(0.35, 0.75),
-      Offset(0.30, 0.80),
-      Offset(0.25, 0.85),
-      Offset(0.20, 0.90),
-      Offset(0.15, 0.90),
-      Offset(0.10, 0.90),
-      Offset(0.10, 0.85),
-      Offset(0.10, 0.80),
-      Offset(0.15, 0.75),
-      Offset(0.20, 0.70),
-      Offset(0.25, 0.65),
-      Offset(0.30, 0.60),
-      Offset(0.35, 0.55),
-      Offset(0.35, 0.50),
-      Offset(0.35, 0.45),
-      Offset(0.30, 0.40),
-      Offset(0.25, 0.35),
-      Offset(0.20, 0.30),
-      Offset(0.15, 0.25),
-      Offset(0.10, 0.20),
+      Offset(0.10, 0.10), Offset(0.15, 0.10), Offset(0.20, 0.10), Offset(0.25, 0.15), Offset(0.30, 0.20), Offset(0.35, 0.25), Offset(0.40, 0.30),
+      Offset(0.45, 0.35), Offset(0.50, 0.35), Offset(0.55, 0.35), Offset(0.60, 0.30), Offset(0.65, 0.25), Offset(0.70, 0.20), Offset(0.75, 0.15),
+      Offset(0.80, 0.10), Offset(0.85, 0.10), Offset(0.90, 0.10), Offset(0.90, 0.15), Offset(0.90, 0.20), Offset(0.85, 0.25), Offset(0.80, 0.30),
+      Offset(0.75, 0.35), Offset(0.70, 0.40), Offset(0.65, 0.45), Offset(0.65, 0.50), Offset(0.65, 0.55), Offset(0.70, 0.60), Offset(0.75, 0.65),
+      Offset(0.80, 0.70), Offset(0.85, 0.75), Offset(0.90, 0.80), Offset(0.90, 0.85), Offset(0.90, 0.90), Offset(0.85, 0.90), Offset(0.80, 0.90),
+      Offset(0.75, 0.85), Offset(0.70, 0.80), Offset(0.65, 0.75), Offset(0.60, 0.70), Offset(0.55, 0.65), Offset(0.50, 0.65), Offset(0.45, 0.65),
+      Offset(0.40, 0.70), Offset(0.35, 0.75), Offset(0.30, 0.80), Offset(0.25, 0.85), Offset(0.20, 0.90), Offset(0.15, 0.90), Offset(0.10, 0.90),
+      Offset(0.10, 0.85), Offset(0.10, 0.80), Offset(0.15, 0.75), Offset(0.20, 0.70), Offset(0.25, 0.65), Offset(0.30, 0.60), Offset(0.35, 0.55),
+      Offset(0.35, 0.50), Offset(0.35, 0.45), Offset(0.30, 0.40), Offset(0.25, 0.35), Offset(0.20, 0.30), Offset(0.15, 0.25), Offset(0.10, 0.20),
       Offset(0.10, 0.15),
     ];
-
     final List<Field> startFields = [
       Field(Offset(0.04, 0.08), 'start', startNumber: 1, player: 1),
       Field(Offset(0.04, 0.14), 'start', startNumber: 2, player: 1),
@@ -265,7 +208,6 @@ class _DogBoardState extends State<DogBoard> {
       Field(Offset(0.20, 0.96), 'start', startNumber: 3, player: 4),
       Field(Offset(0.26, 0.96), 'start', startNumber: 4, player: 4),
     ];
-
     final List<Field> goalFields = [
       Field(Offset(0.17, 0.17), 'goal', goalNumber: 1, player: 1),
       Field(Offset(0.21, 0.21), 'goal', goalNumber: 2, player: 1),
@@ -284,7 +226,6 @@ class _DogBoardState extends State<DogBoard> {
       Field(Offset(0.25, 0.75), 'goal', goalNumber: 3, player: 4),
       Field(Offset(0.29, 0.71), 'goal', goalNumber: 4, player: 4),
     ];
-
     return [
       for (int i = 0; i < coords.length; i++)
         Field(
@@ -525,6 +466,80 @@ class _DogBoardState extends State<DogBoard> {
                               }
                               final card = hand[cardIdx];
                               final isSelected = card == selectedCard;
+                              final playableCards = selectedPiece != null
+                                  ? gameManager.playerHands[myPlayerNumber - 1]
+                                      .where((card) => gameManager.canPieceMove(selectedPiece!, card))
+                                      .toSet()
+                                  : <DogCard>{};
+                              final isPlayable = selectedPiece != null && playableCards.contains(card);
+                              Widget cardContent = AnimatedContainer(
+                                duration: const Duration(milliseconds: 100),
+                                width: cardWidth,
+                                height: cardHeight,
+                                margin: EdgeInsets.symmetric(horizontal: handCardSpacing),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? Colors.orange
+                                      : (hoveredCard == card && selectedPiece != null)
+                                          ? hoverColor
+                                          : Colors.white,
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? Colors.orange
+                                        : (hoveredCard == card && selectedPiece != null)
+                                            ? playerColor
+                                            : Colors.black26,
+                                    width: isSelected
+                                        ? 3
+                                        : (hoveredCard == card && selectedPiece != null)
+                                            ? 2.3
+                                            : 1.5,
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: [
+                                    if (isSelected)
+                                      BoxShadow(
+                                        color: Colors.orange,
+                                        blurRadius: 7,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    if (hoveredCard == card && !isSelected && selectedPiece != null)
+                                      BoxShadow(
+                                        color: playerColor.withAlpha(51),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                  ],
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    card.toString(),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: cardWidth * 0.25,
+                                      color: card.suit == Suit.hearts || card.suit == Suit.diamonds
+                                          ? Colors.red
+                                          : Colors.black,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              );
+                              if (isPlayable) {
+                                cardContent = Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    IgnorePointer(
+                                      child: AnimatedPulseGlow(
+                                        size: cardWidth,
+                                        color: const Color.fromARGB(255, 5, 240, 17),
+                                        child: SizedBox(width: cardWidth, height: cardHeight),
+                                      ),
+                                    ),
+                                    cardContent,
+                                  ],
+                                );
+                              }
                               return MouseRegion(
                                 cursor: SystemMouseCursors.click,
                                 onEnter: (_) {
@@ -543,61 +558,7 @@ class _DogBoardState extends State<DogBoard> {
                                       _handleCardTap(card);
                                     }
                                   },
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 100),
-                                    width: cardWidth,    
-                                    height: cardHeight,
-                                    margin: EdgeInsets.symmetric(
-                                      horizontal: handCardSpacing,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: isSelected
-                                          ? Colors.orange
-                                          : (hoveredCard == card && selectedPiece != null)
-                                              ? hoverColor
-                                              : Colors.white,
-                                      border: Border.all(
-                                        color: isSelected
-                                            ? Colors.orange
-                                            : (hoveredCard == card && selectedPiece != null)
-                                                ? playerColor
-                                                : Colors.black26,
-                                        width: isSelected
-                                            ? 3
-                                            : (hoveredCard == card && selectedPiece != null)
-                                                ? 2.3
-                                                : 1.5,
-                                      ),
-                                      borderRadius: BorderRadius.circular(10),
-                                      boxShadow: [
-                                        if (isSelected)
-                                          BoxShadow(
-                                            color: Colors.orange,
-                                            blurRadius: 7,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        if (hoveredCard == card && !isSelected && selectedPiece != null)
-                                          BoxShadow(
-                                            color: playerColor.withAlpha(51),
-                                            blurRadius: 8,
-                                            offset: const Offset(0, 3),
-                                          ),
-                                      ],
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        card.toString(),
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: cardWidth * 0.25,
-                                          color: card.suit == Suit.hearts || card.suit == Suit.diamonds
-                                              ? Colors.red
-                                              : Colors.black,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
+                                  child: cardContent,
                                 ),
                               );
                             }),
@@ -732,55 +693,54 @@ class _DogBoardState extends State<DogBoard> {
                           );
                         }),
                         // BRIKKER
-...gameManager.pieces.map((piece) {
-  final field = fields[piece.fieldIndex];
-  final pos = Offset(
-    field.relPos.dx * boardSide,
-    field.relPos.dy * boardSide,
-  );
-  Color color = playerStartColor[piece.player] ?? Colors.black;
+                        ...gameManager.pieces.map((piece) {
+                          final field = fields[piece.fieldIndex];
+                          final pos = Offset(
+                            field.relPos.dx * boardSide,
+                            field.relPos.dy * boardSide,
+                          );
+                          Color color = playerStartColor[piece.player] ?? Colors.black;
 
-  final bool isSelected = selectedPiece == piece;
-  final bool isInStartArea = field.type == 'start';
-  final bool isMine = piece.player == myPlayerNumber;
-  final bool canMovePiece = movablePieces.contains(piece);
+                          final bool isSelected = selectedPiece == piece;
+                          final bool isInStartArea = field.type == 'start';
+                          final bool isMine = piece.player == myPlayerNumber;
+                          final bool canMovePiece = movablePieces.contains(piece);
 
-  Widget innerPiece = DogPieceWidget(
-    color: color,
-    size: pieceSize,
-    isSelected: isSelected,
-    isInPlay: !isInStartArea,
-  );
+                          Widget innerPiece = DogPieceWidget(
+                            color: color,
+                            size: pieceSize,
+                            isSelected: isSelected,
+                            isInPlay: !isInStartArea,
+                          );
 
-  if (isMine && !canMovePiece && isMyTurn) {
-    innerPiece = Opacity(opacity: 0.38, child: innerPiece);
-  }
+                          if (isMine && !canMovePiece && isMyTurn) {
+                            innerPiece = Opacity(opacity: 0.38, child: innerPiece);
+                          }
 
-  // Wrap med GestureDetector for dine klikkbare brikker
-  if (isMine && isMyTurn && canMovePiece) {
-    innerPiece = GestureDetector(
-      onTap: () => _handlePieceTap(piece),
-      child: innerPiece,
-    );
-  }
+                          // Wrap med GestureDetector for dine klikkbare brikker
+                          if (isMine && isMyTurn && canMovePiece) {
+                            innerPiece = GestureDetector(
+                              onTap: () => _handlePieceTap(piece),
+                              child: innerPiece,
+                            );
+                          }
 
-  // Nytt: PULSERENDE GLOW på alle dine brikker med mulig trekk
-  Widget result = innerPiece;
-  if (isMine && canMovePiece && isMyTurn) {
-    result = AnimatedPulseGlow(
-      child: innerPiece,
-      size: pieceSize,
-      color: Colors.greenAccent,
-    );
-  }
+                          // Nytt: PULSERENDE GLOW på alle dine brikker med mulig trekk
+                          Widget result = innerPiece;
+                          if (isMine && canMovePiece && isMyTurn) {
+                            result = AnimatedPulseGlow(
+                              child: innerPiece,
+                              size: pieceSize,
+                              color: const Color.fromARGB(255, 5, 240, 17),
+                            );
+                          }
 
-  return Positioned(
-    left: pos.dx - pieceSize / 2,
-    top: pos.dy - pieceSize / 2,
-    child: result,
-  );
-}),
-
+                          return Positioned(
+                            left: pos.dx - pieceSize / 2,
+                            top: pos.dy - pieceSize / 2,
+                            child: result,
+                          );
+                        }),
                         // Midtboksen
                         Transform.rotate(
                           angle: -getBoardRotation(myPlayerNumber),
