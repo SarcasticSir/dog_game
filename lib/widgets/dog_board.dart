@@ -12,13 +12,7 @@ import 'dog_piece_widget.dart';
 import '../dog_card.dart';
 import '../models/piece.dart';
 
-class SevenMoveStep {
-  final DogPiece piece;
-  final int steps;
-  final int fromIndex;
-  final int toIndex;
-  SevenMoveStep(this.piece, this.steps, this.fromIndex, this.toIndex);
-}
+
 
 class SevenMovePart {
   final DogPiece piece;
@@ -43,6 +37,7 @@ class _DogBoardState extends State<DogBoard> {
   DogCard? hoveredCard;
   DogPiece? selectedPiece;
   int? selectedMoveValue; // Brukes kun ved 4-kort
+  Map<DogPiece, Set<int>> sevenUsedFields = {};
 
   int myPlayerNumber = 1;
 
@@ -198,37 +193,61 @@ class _DogBoardState extends State<DogBoard> {
   }
 
   void _handleSevenFieldTap(int toIndex) {
-    // Flytt currentSevenPiece til toIndex, trekk fra steg, legg til i sevenMoves
-    if (currentSevenPiece == null || !inSevenMode) return;
+  if (currentSevenPiece == null || !inSevenMode) return;
 
-    int fromIndex = currentSevenPiece!.fieldIndex;
-    int steps = (toIndex - fromIndex + 64) % 64;
-    if (steps == 0 || steps > remainingSevenSteps) return;
+  int fromIndex = currentSevenPiece!.fieldIndex;
+  int steps = (toIndex - fromIndex + 64) % 64;
+  if (steps == 0 || steps > remainingSevenSteps) return;
 
-    setState(() {
-      sevenMoves.add(SevenMoveStep(currentSevenPiece!, steps, fromIndex, toIndex));
-      remainingSevenSteps -= steps;
-      // Brikken "flyttes" midlertidig (visuelt for bruker)
-      currentSevenPiece = null;
-      if (remainingSevenSteps == 0) {
-        // Klar til å bekrefte syver-trekk!
-      }
-    });
+  // Hent tidligere brukte felter for denne brikken, eller start på fromIndex
+  Set<int> used = sevenUsedFields[currentSevenPiece!] ?? {fromIndex};
+  // Legg til alle nye felter denne brikken går over nå (inkl sluttpunkt)
+  for (int i = 1; i <= steps; i++) {
+    int pos = (fromIndex + i) % 64;
+    used.add(pos);
   }
+  sevenUsedFields[currentSevenPiece!] = used;
+
+  setState(() {
+    sevenMoves.add(
+      SevenMoveStep(
+        piece: currentSevenPiece!,
+        fromIndex: fromIndex,
+        toIndex: toIndex,
+        steps: steps,
+      ),
+    );
+    remainingSevenSteps -= steps;
+    currentSevenPiece = null;
+  });
+}
+
 
   void _handleConfirmSevenMoves() {
-    // TODO: implementer denne til å sende trekk til GameManager
-    // Du kan gi sevenMoves-listen til gameManager
-    setState(() {
-      inSevenMode = false;
-      selectedCard = null;
-      selectedPiece = null;
-      selectedMoveValue = null;
-      remainingSevenSteps = 7;
-      sevenMoves.clear();
-      currentSevenPiece = null;
-      myPlayerNumber = gameManager.currentPlayer;
-    });
+    // Sjekk at det er valgt 7-kort og minst ett syver-trekk
+    if (selectedCard != null && selectedCard!.rank == 7 && sevenMoves.isNotEmpty) {
+      // Send til gameManager, som returnerer true/false om trekket er gyldig
+      final bool success = gameManager.playSevenCard(
+        myPlayerNumber,
+        selectedCard!,
+        sevenMoves,
+      );
+      if (success) {
+        setState(() {
+          inSevenMode = false;
+          selectedCard = null;
+          selectedPiece = null;
+          selectedMoveValue = null;
+          remainingSevenSteps = 7;
+          sevenMoves.clear();
+          currentSevenPiece = null;
+          myPlayerNumber = gameManager.currentPlayer;
+        });
+      } else {
+        // Kun print, ingen snackbar
+        print("Ugyldig syver-trekk! Du kan ikke hoppe over egne eller immun-brikker.");
+      }
+    }sevenUsedFields.clear();
   }
 
   void _handleCancelSeven() {
@@ -240,7 +259,8 @@ class _DogBoardState extends State<DogBoard> {
       remainingSevenSteps = 7;
       sevenMoves.clear();
       currentSevenPiece = null;
-    });
+    });sevenUsedFields.clear();
+
   }
 
   void _handlePlayCardButton() {
@@ -283,7 +303,6 @@ class _DogBoardState extends State<DogBoard> {
       selectedMoveValue = null;
     });
   }
-
 
     List<Field> _manualFields() {
     final coords = [
@@ -811,108 +830,134 @@ class _DogBoardState extends State<DogBoard> {
                             borderRadius: BorderRadius.circular(32),
                           ),
                         ),
-                        // FELTER
-                        ...fields.asMap().entries.map((entry) {
-                          final f = entry.value;
-                          final pos = Offset(
-                            f.relPos.dx * boardSide,
-                            f.relPos.dy * boardSide,
-                          );
-                          double size = baseFieldSize;
-                          if (f.type == 'immunity') size *= immunityMultiplier;
-                          if (f.type == 'start') size *= startMultiplier;
+                       // FELTER
+...fields.asMap().entries.map((entry) {
+  final f = entry.value;
+  final fieldIdx = entry.key;
 
-                          Color color;
-                          if (f.type == 'immunity') {
-                            color = Colors.black;
-                          } else if (f.type == 'goal' ||
-                              f.type == 'start') {
-                            color = playerStartColor[f.player] ?? Colors.green;
-                          } else {
-                            color = Colors.black;
-                          }
+  bool isUsed = false;
+  if (inSevenMode && currentSevenPiece != null && sevenUsedFields[currentSevenPiece!] != null) {
+    isUsed = sevenUsedFields[currentSevenPiece!]!.contains(fieldIdx);
+  }
 
-                          Widget? label;
-                          if (f.type == 'goal') {
-                            label = Transform.rotate(
-                              angle: -getBoardRotation(myPlayerNumber),
-                              child: FittedBox(
-                                fit: BoxFit.contain,
-                                child: Text(
-                                  '${f.goalNumber}',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                    fontSize: size * 0.6,
-                                    shadows: [
-                                      Shadow(
-                                        blurRadius: 2,
-                                        color: Colors.black,
-                                      ),
-                                    ],
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            );
-                          } else if (f.type == 'start') {
-                            label = Transform.rotate(
-                              angle: -getBoardRotation(myPlayerNumber),
-                              child: FittedBox(
-                                fit: BoxFit.contain,
-                                child: Text(
-                                  '${f.startNumber}',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                    fontSize: size * 0.6,
-                                    shadows: [
-                                      Shadow(
-                                        blurRadius: 2,
-                                        color: Colors.black,
-                                      ),
-                                    ],
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            );
-                          }
+  final pos = Offset(
+    f.relPos.dx * boardSide,
+    f.relPos.dy * boardSide,
+  );
+  double size = baseFieldSize;
+  if (f.type == 'immunity') size *= immunityMultiplier;
+  if (f.type == 'start') size *= startMultiplier;
 
-                          return Positioned(
-                            left: pos.dx - size / 2,
-                            top: pos.dy - size / 2,
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                if (f.type == 'start')
-                                  CustomPaint(
-                                    size: Size(size, size),
-                                    painter: OctagonPainter(color),
-                                  )
-                                else
-                                  Container(
-                                    width: size,
-                                    height: size,
-                                    decoration: BoxDecoration(
-                                      color: color,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.white,
-                                        width: size * 0.14,
-                                      ),
-                                    ),
-                                  ),
-                                if (f.type == 'goal')
-                                  CustomPaint(
-                                    size: Size(size, size),
-                                    painter: DiamondPainter(color),
-                                  ),
-                                if (label != null) label,
-                              ],
-                            ),
-                          );
-                        }),
+  Color color;
+  if (f.type == 'immunity') {
+    color = Colors.black;
+  } else if (f.type == 'goal' || f.type == 'start') {
+    color = playerStartColor[f.player] ?? Colors.green;
+  } else {
+    color = Colors.black;
+  }
+
+  Widget? label;
+  if (f.type == 'goal') {
+    label = Transform.rotate(
+      angle: -getBoardRotation(myPlayerNumber),
+      child: FittedBox(
+        fit: BoxFit.contain,
+        child: Text(
+          '${f.goalNumber}',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            fontSize: size * 0.6,
+            shadows: [
+              Shadow(
+                blurRadius: 2,
+                color: Colors.black,
+              ),
+            ],
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  } else if (f.type == 'start') {
+    label = Transform.rotate(
+      angle: -getBoardRotation(myPlayerNumber),
+      child: FittedBox(
+        fit: BoxFit.contain,
+        child: Text(
+          '${f.startNumber}',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            fontSize: size * 0.6,
+            shadows: [
+              Shadow(
+                blurRadius: 2,
+                color: Colors.black,
+              ),
+            ],
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+
+  Widget stackContent = Stack(
+    alignment: Alignment.center,
+    children: [
+      if (f.type == 'start')
+        CustomPaint(
+          size: Size(size, size),
+          painter: OctagonPainter(color),
+        )
+      else
+        Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: Colors.white,
+              width: size * 0.14,
+            ),
+          ),
+        ),
+      if (f.type == 'goal')
+        CustomPaint(
+          size: Size(size, size),
+          painter: DiamondPainter(color),
+        ),
+      if (label != null) label,
+    ],
+  );
+
+  // Grå ut felt hvis denne brikken har vært der i denne syver
+  if (isUsed) {
+    stackContent = ColorFiltered(
+      colorFilter: ColorFilter.mode(Colors.grey.withOpacity(0.55), BlendMode.srcATop),
+      child: stackContent,
+    );
+  }
+
+  // Kun klikkbar hvis syvermodus, brikke valgt og feltet ikke allerede brukt for denne brikken
+  if (inSevenMode && currentSevenPiece != null && !isUsed) {
+    stackContent = GestureDetector(
+      onTap: () => _handleSevenFieldTap(fieldIdx),
+      child: stackContent,
+    );
+  }
+
+  return Positioned(
+    left: pos.dx - size / 2,
+    top: pos.dy - size / 2,
+    child: stackContent,
+  );
+}),
+
+
                         // BRIKKER
                         ...gameManager.pieces.map((piece) {
                           final field = fields[piece.fieldIndex];
