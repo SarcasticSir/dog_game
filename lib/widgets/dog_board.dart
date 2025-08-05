@@ -12,12 +12,6 @@ import 'dog_piece_widget.dart';
 import '../dog_card.dart';
 import '../models/piece.dart';
 
-class DogBoard extends StatefulWidget {
-  const DogBoard({super.key});
-  @override
-  State<DogBoard> createState() => _DogBoardState();
-}
-
 class SevenMoveStep {
   final DogPiece piece;
   final int steps;
@@ -26,6 +20,20 @@ class SevenMoveStep {
   SevenMoveStep(this.piece, this.steps, this.fromIndex, this.toIndex);
 }
 
+class SevenMovePart {
+  final DogPiece piece;
+  final int fromIndex;
+  final int toIndex;
+  final int steps;
+
+  SevenMovePart({required this.piece, required this.fromIndex, required this.toIndex, required this.steps});
+}
+
+class DogBoard extends StatefulWidget {
+  const DogBoard({super.key});
+  @override
+  State<DogBoard> createState() => _DogBoardState();
+}
 
 class _DogBoardState extends State<DogBoard> {
   late List<Field> fields;
@@ -38,11 +46,11 @@ class _DogBoardState extends State<DogBoard> {
 
   int myPlayerNumber = 1;
 
+  // Syvermodus-tilstand
   bool inSevenMode = false;
-int remainingSevenSteps = 7;
-List<SevenMoveStep> sevenMoves = [];
-DogCard? selectedSevenCard;
-
+  int remainingSevenSteps = 7;
+  List<SevenMoveStep> sevenMoves = [];
+  DogPiece? currentSevenPiece;
 
   final Map<int, Color> playerStartColor = {
     1: Colors.red,
@@ -122,56 +130,65 @@ DogCard? selectedSevenCard;
   }
 
   void _handleCardTap(DogCard card) {
-  if (selectedPiece == null) {
-    print("Velg en brikke først.");
-    return;
-  }
-  if (gameManager.currentPlayer != myPlayerNumber) {
-    print("Det er ikke din tur.");
-    return;
-  }
-  final playable = getPlayableCards(selectedPiece).contains(card);
-  if (!playable) return;
-
-  setState(() {
-    if (card.rank == 7) {
-      // Aktiver syver-modus
-      inSevenMode = true;
-      remainingSevenSteps = 7;
-      sevenMoves = [];
-      selectedSevenCard = card;
-      // Vi tillater at ingen annen state er valgt
-      selectedCard = card;
-      selectedMoveValue = null;
-      // Ikke velg brikke nå, vi gjør det i neste steg
-    } else {
-      // Vanlig kort
-      selectedCard = card;
-      selectedMoveValue = null;
-      inSevenMode = false;
-      selectedSevenCard = null;
-      sevenMoves = [];
-      remainingSevenSteps = 0;
+    if (selectedPiece == null) {
+      print("Velg en brikke først.");
+      return;
     }
-  });
-}
+    if (gameManager.currentPlayer != myPlayerNumber) {
+      print("Det er ikke din tur.");
+      return;
+    }
+    final playable = getPlayableCards(selectedPiece).contains(card);
+    if (!playable) return;
 
-
-  void _handlePieceTap(DogPiece piece) {
-    if (piece.player != gameManager.currentPlayer) return;
-    final movable = getMovablePieces(myPlayerNumber).contains(piece);
-    if (!movable) return;
     setState(() {
-      if (selectedPiece == piece) {
-        selectedPiece = null;
+      if (selectedCard == card) {
         selectedCard = null;
         selectedMoveValue = null;
+        inSevenMode = false;
+        sevenMoves.clear();
+        remainingSevenSteps = 7;
+        currentSevenPiece = null;
       } else {
-        selectedPiece = piece;
-        selectedCard = null;
+        selectedCard = card;
         selectedMoveValue = null;
+        if (card.rank == 7) {
+          inSevenMode = true;
+          sevenMoves.clear();
+          remainingSevenSteps = 7;
+          currentSevenPiece = null;
+        } else {
+          inSevenMode = false;
+          sevenMoves.clear();
+          currentSevenPiece = null;
+        }
       }
     });
+  }
+
+  void _handlePieceTap(DogPiece piece) {
+    if (!inSevenMode) {
+      if (piece.player != gameManager.currentPlayer) return;
+      final movable = getMovablePieces(myPlayerNumber).contains(piece);
+      if (!movable) return;
+      setState(() {
+        if (selectedPiece == piece) {
+          selectedPiece = null;
+          selectedCard = null;
+          selectedMoveValue = null;
+        } else {
+          selectedPiece = piece;
+          selectedCard = null;
+          selectedMoveValue = null;
+        }
+      });
+    } else {
+      // Syvermodus: Velg brikke som skal flyttes i denne "delen" av syvertrekket
+      if (piece.player != myPlayerNumber) return;
+      setState(() {
+        currentSevenPiece = piece;
+      });
+    }
   }
 
   void _handleMoveChoice(int value) {
@@ -180,36 +197,83 @@ DogCard? selectedSevenCard;
     });
   }
 
- void _handlePlayCardButton() {
-  if (selectedCard != null && selectedPiece != null) {
-    int moveValue = selectedCard!.rank ?? 0;
-    if (selectedCard!.rank == 4) {
-      if (selectedMoveValue == null) {
-        print("Velg retning for 4-kortet.");
-        return;
+  void _handleSevenFieldTap(int toIndex) {
+    // Flytt currentSevenPiece til toIndex, trekk fra steg, legg til i sevenMoves
+    if (currentSevenPiece == null || !inSevenMode) return;
+
+    int fromIndex = currentSevenPiece!.fieldIndex;
+    int steps = (toIndex - fromIndex + 64) % 64;
+    if (steps == 0 || steps > remainingSevenSteps) return;
+
+    setState(() {
+      sevenMoves.add(SevenMoveStep(currentSevenPiece!, steps, fromIndex, toIndex));
+      remainingSevenSteps -= steps;
+      // Brikken "flyttes" midlertidig (visuelt for bruker)
+      currentSevenPiece = null;
+      if (remainingSevenSteps == 0) {
+        // Klar til å bekrefte syver-trekk!
       }
-      moveValue = selectedMoveValue!;
-    }
+    });
+  }
 
-    final bool moveSuccessful = gameManager.playCard(
-      gameManager.currentPlayer,
-      selectedCard!,
-      selectedPiece!,
-      moveValue,
-    );
+  void _handleConfirmSevenMoves() {
+    // TODO: implementer denne til å sende trekk til GameManager
+    // Du kan gi sevenMoves-listen til gameManager
+    setState(() {
+      inSevenMode = false;
+      selectedCard = null;
+      selectedPiece = null;
+      selectedMoveValue = null;
+      remainingSevenSteps = 7;
+      sevenMoves.clear();
+      currentSevenPiece = null;
+      myPlayerNumber = gameManager.currentPlayer;
+    });
+  }
 
-    if (moveSuccessful) {
-      setState(() {
-        selectedCard = null;
-        selectedPiece = null;
-        selectedMoveValue = null;
-        myPlayerNumber = gameManager.currentPlayer;
-      });
-    } else {
-      print("Ugyldig trekk med valgt kort og brikke.");
+  void _handleCancelSeven() {
+    setState(() {
+      inSevenMode = false;
+      selectedCard = null;
+      selectedPiece = null;
+      selectedMoveValue = null;
+      remainingSevenSteps = 7;
+      sevenMoves.clear();
+      currentSevenPiece = null;
+    });
+  }
+
+  void _handlePlayCardButton() {
+    if (selectedCard != null && selectedPiece != null) {
+      int moveValue = selectedCard!.rank ?? 0;
+      if (selectedCard!.rank == 4) {
+        if (selectedMoveValue == null) {
+          print("Velg retning for 4-kortet.");
+          return;
+        }
+        moveValue = selectedMoveValue!;
+      }
+
+      final bool moveSuccessful = gameManager.playCard(
+        gameManager.currentPlayer,
+        selectedCard!,
+        selectedPiece!,
+        moveValue,
+      );
+
+      if (moveSuccessful) {
+        setState(() {
+          selectedCard = null;
+          selectedPiece = null;
+          selectedMoveValue = null;
+          myPlayerNumber = gameManager.currentPlayer;
+        });
+      } else {
+        print("Ugyldig trekk med valgt kort og brikke.");
+      }
     }
   }
-}
+
   void _handlePassButton() {
     setState(() {
       gameManager.passTurn();
@@ -220,7 +284,8 @@ DogCard? selectedSevenCard;
     });
   }
 
-  List<Field> _manualFields() {
+
+    List<Field> _manualFields() {
     final coords = [
       Offset(0.10, 0.10), Offset(0.15, 0.10), Offset(0.20, 0.10), Offset(0.25, 0.15), Offset(0.30, 0.20), Offset(0.35, 0.25), Offset(0.40, 0.30),
       Offset(0.45, 0.35), Offset(0.50, 0.35), Offset(0.55, 0.35), Offset(0.60, 0.30), Offset(0.65, 0.25), Offset(0.70, 0.20), Offset(0.75, 0.15),
@@ -362,11 +427,10 @@ DogCard? selectedSevenCard;
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // ---- KNAPPER START ----
                         Stack(
                           alignment: Alignment.center,
                           children: [
-                            // 4-kort: Velg frem/bak-knapper vertikalt, deretter bekreft
+                            // 4-kort
                             if (canPlayCard && selectedCard != null && selectedCard!.rank == 4 && selectedMoveValue == null)
                               Column(
                                 children: [
@@ -423,7 +487,6 @@ DogCard? selectedSevenCard;
                                   ),
                                   elevation: 5,
                                 ),
-                                
                                 child: Text(
                                   'Bekreft trekk',
                                   style: TextStyle(
@@ -432,9 +495,49 @@ DogCard? selectedSevenCard;
                                   ),
                                 ),
                               )
+                            // Syvermodus: bekreft eller avbryt
+                            else if (inSevenMode && remainingSevenSteps == 0)
+                              Row(
+                                children: [
+                                  ElevatedButton(
+                                    onPressed: _handleConfirmSevenMoves,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      elevation: 5,
+                                    ),
+                                    child: const Text(
+                                      'Bekreft syver-trekk',
+                                      style: TextStyle(fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton(
+                                    onPressed: _handleCancelSeven,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      elevation: 5,
+                                    ),
+                                    child: const Text(
+                                      'Avbryt',
+                                      style: TextStyle(fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            // Vanlig spill-knapp
                             else
                               Visibility(
-                                visible: canPlayCard,
+                                visible: canPlayCard && !inSevenMode,
                                 child: ElevatedButton(
                                   onPressed: _handlePlayCardButton,
                                   style: ElevatedButton.styleFrom(
@@ -455,21 +558,8 @@ DogCard? selectedSevenCard;
                                   ),
                                 ),
                               ),
-                              if (inSevenMode)
-  Padding(
-    padding: const EdgeInsets.only(bottom: 8.0),
-    child: Text(
-      "Syvermodus: $remainingSevenSteps steg igjen",
-      style: TextStyle(
-        fontSize: 20,
-        color: Colors.deepPurple,
-        fontWeight: FontWeight.bold,
-      ),
-    ),
-  ),
-
                             Visibility(
-                              visible: isMyTurn && !canMove,
+                              visible: isMyTurn && !canMove && !inSevenMode,
                               child: ElevatedButton(
                                 onPressed: _handlePassButton,
                                 style: ElevatedButton.styleFrom(
@@ -492,60 +582,76 @@ DogCard? selectedSevenCard;
                             ),
                           ],
                         ),
-                        // ---- KNAPPER SLUTT ----
                         const SizedBox(width: 20),
                         Column(
                           mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              width: cardWidth * 1.2,
-                              height: cardHeight * 1.2,
-                              margin: const EdgeInsets.only(bottom: 15),
-                              child: Stack(
-                                children: [
-                                  for (int i = 2; i >= 0; i--)
-                                    Positioned(
-                                      left: i.toDouble() * cardWidth * 0.05,
-                                      top: i.toDouble() * cardHeight * 0.05,
-                                      child: Container(
-                                        width: cardWidth,
-                                        height: cardHeight,
-                                        decoration: BoxDecoration(
-                                          color: i == 0
-                                              ? Colors.white
-                                              : Colors.grey[300],
-                                          borderRadius: BorderRadius.circular(10),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.black26,
-                                              blurRadius: 7,
-                                              offset: Offset(2, 3),
-                                            ),
-                                          ],
-                                          border: Border.all(
-                                            color: Colors.grey.shade400,
-                                            width: 2,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  Positioned(
-                                    left: cardWidth * 0.05,
-                                    top: cardHeight * 0.1,
-                                    child: SizedBox(
-                                      width: cardWidth * 0.9,
-                                      height: cardHeight * 0.9,
-                                      child: Center(
-                                        child: Icon(
-                                          Icons.style,
-                                          size: cardWidth * 0.8,
-                                          color: Colors.blueGrey[300],
-                                        ),
+                            Row(
+                              children: [
+                                if (inSevenMode)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 14.0),
+                                    child: Text(
+                                      "$remainingSevenSteps steg igjen",
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        color: Colors.deepPurple,
+                                        fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                   ),
-                                ],
-                              ),
+                                Container(
+                                  width: cardWidth * 1.2,
+                                  height: cardHeight * 1.2,
+                                  margin: const EdgeInsets.only(bottom: 15),
+                                  child: Stack(
+                                    children: [
+                                      for (int i = 2; i >= 0; i--)
+                                        Positioned(
+                                          left: i.toDouble() * cardWidth * 0.05,
+                                          top: i.toDouble() * cardHeight * 0.05,
+                                          child: Container(
+                                            width: cardWidth,
+                                            height: cardHeight,
+                                            decoration: BoxDecoration(
+                                              color: i == 0
+                                                  ? Colors.white
+                                                  : Colors.grey[300],
+                                              borderRadius: BorderRadius.circular(10),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black26,
+                                                  blurRadius: 7,
+                                                  offset: Offset(2, 3),
+                                                ),
+                                              ],
+                                              border: Border.all(
+                                                color: Colors.grey.shade400,
+                                                width: 2,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      Positioned(
+                                        left: cardWidth * 0.05,
+                                        top: cardHeight * 0.1,
+                                        child: SizedBox(
+                                          width: cardWidth * 0.9,
+                                          height: cardHeight * 0.9,
+                                          child: Center(
+                                            child: Icon(
+                                              Icons.style,
+                                              size: cardWidth * 0.8,
+                                              color: Colors.blueGrey[300],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                             Container(
                               width: cardWidth,
@@ -718,7 +824,7 @@ DogCard? selectedSevenCard;
 
                           Color color;
                           if (f.type == 'immunity') {
-                            color = Colors.black; // Endret til sort
+                            color = Colors.black;
                           } else if (f.type == 'goal' ||
                               f.type == 'start') {
                             color = playerStartColor[f.player] ?? Colors.green;
@@ -864,8 +970,15 @@ DogCard? selectedSevenCard;
                             );
                           }
 
-                          // Gjør brikken klikkbar hvis det er din og du kan flytte den
-                          if (isMine && canMovePiece && isMyTurn && !showSkull) {
+                          // Syvermodus: gjør brikker klikkbare for å velge syverdel
+                          if (inSevenMode && isMine && isMyTurn) {
+                            pieceWidget = GestureDetector(
+                              onTap: () => _handlePieceTap(piece),
+                              child: pieceWidget,
+                            );
+                          }
+                          // Vanlig: brikken kan flyttes
+                          else if (!inSevenMode && isMine && canMovePiece && isMyTurn && !showSkull) {
                             pieceWidget = GestureDetector(
                               onTap: () => _handlePieceTap(piece),
                               child: pieceWidget,

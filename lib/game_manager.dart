@@ -1,10 +1,6 @@
-//import 'package:flutter/material.dart';
 import 'package:dog_game/dog_card.dart';
 import 'package:dog_game/models/piece.dart';
 import 'package:dog_game/models/field.dart';
-
-/// En enkel klasse for å representere et mulig trekk.
-/// Et trekk består av en brikke og et kort som brukes på den brikken.
 
 class Move {
   final DogPiece piece;
@@ -12,6 +8,20 @@ class Move {
   final int moveValue; // Kan være positiv eller negativ
 
   Move({required this.piece, required this.card, required this.moveValue});
+}
+
+/// Ny klasse: Et syver-trekk består av flere deltrekk (eks: 4 steg med en brikke, 3 med en annen)
+class SevenMoveStep {
+  final DogPiece piece;
+  final int fromIndex;
+  final int toIndex;
+  final int steps;
+  SevenMoveStep({
+    required this.piece,
+    required this.fromIndex,
+    required this.toIndex,
+    required this.steps,
+  });
 }
 
 class GameManager {
@@ -55,59 +65,21 @@ class GameManager {
     round = 1;
   }
 
-bool canPieceMoveWithValue(DogPiece piece, DogCard card, int moveValue) {
-  final field = fields[piece.fieldIndex];
+  /// Standard flytt sjekk for ett enkelt steg
+  bool canPieceMoveWithValue(DogPiece piece, DogCard card, int moveValue) {
+    final field = fields[piece.fieldIndex];
 
-  if (field.type == 'start') {
-    if (card.rank == 1 || card.rank == 13 || card.suit == Suit.joker) {
-      final int boardMainFieldIndex = fields.asMap().entries
-          .firstWhere((entry) => entry.value.player == piece.player && entry.value.type == 'immunity')
-          .key;
-      // Sjekk om startfeltet er ledig
-      return !pieces.any((p) => p.fieldIndex == boardMainFieldIndex);
-    }
-    return false;
-  }
-
-  // Ikke mulig å flytte fra mål eller immunplass med spesialverdier (håndteres ellers)
-  int boardSize = 64;
-  int newFieldIndex = (piece.fieldIndex + moveValue);
-  if (newFieldIndex >= boardSize) {
-    newFieldIndex = newFieldIndex % boardSize;
-  } else if (newFieldIndex < 0) {
-    newFieldIndex = boardSize + newFieldIndex;
-  }
-
-  final occupyingPiece = pieces.firstWhere(
-    (p) => p.fieldIndex == newFieldIndex,
-    orElse: () => DogPiece(player: -1, fieldIndex: -1),
-  );
-  return occupyingPiece.player == -1 || occupyingPiece.player != piece.player;
-}
-
-  /// Spiller et kort og flytter en brikke
-  /// Returnerer true ved vellykket trekk, false ved ugyldig trekk
-  bool playCard(int player, DogCard card, DogPiece piece, int moveValue) {
-  if (player != currentPlayer) return false;
-  if (!playerHands[player - 1].contains(card)) return false;
-
-  final field = fields[piece.fieldIndex];
-
-  // Sjekker om brikken skal flyttes fra startområdet
-  if (field.type == 'start') {
-    if (card.rank == 1 || card.rank == 13 || card.suit == Suit.joker) {
-      final int boardMainFieldIndex = fields.asMap().entries
-          .firstWhere((entry) => entry.value.player == player && entry.value.type == 'immunity')
-          .key;
-      if (!pieces.any((p) => p.fieldIndex == boardMainFieldIndex)) {
-        piece.fieldIndex = boardMainFieldIndex;
-      } else {
-        return false;
+    if (field.type == 'start') {
+      if (card.rank == 1 || card.rank == 13 || card.suit == Suit.joker) {
+        final int boardMainFieldIndex = fields.asMap().entries
+            .firstWhere((entry) => entry.value.player == piece.player && entry.value.type == 'immunity')
+            .key;
+        // Sjekk om startfeltet er ledig
+        return !pieces.any((p) => p.fieldIndex == boardMainFieldIndex);
       }
-    } else {
       return false;
     }
-  } else {
+
     int boardSize = 64;
     int newFieldIndex = (piece.fieldIndex + moveValue);
     if (newFieldIndex >= boardSize) {
@@ -116,31 +88,124 @@ bool canPieceMoveWithValue(DogPiece piece, DogCard card, int moveValue) {
       newFieldIndex = boardSize + newFieldIndex;
     }
 
-    // Sjekk om det nye feltet er opptatt
     final occupyingPiece = pieces.firstWhere(
       (p) => p.fieldIndex == newFieldIndex,
       orElse: () => DogPiece(player: -1, fieldIndex: -1),
     );
-    if (occupyingPiece.player != -1) {
-      if (occupyingPiece.player == player) {
-        // Kan ikke lande på egen brikke
-        return false;
+    return occupyingPiece.player == -1 || occupyingPiece.player != piece.player;
+  }
+  /// Spiller et kort og flytter en brikke – STANDARD (ikke syver)
+  /// Returnerer true ved vellykket trekk, false ved ugyldig trekk
+  bool playCard(int player, DogCard card, DogPiece piece, int moveValue) {
+    if (player != currentPlayer) return false;
+    if (!playerHands[player - 1].contains(card)) return false;
+
+    final field = fields[piece.fieldIndex];
+
+    // Sjekker om brikken skal flyttes fra startområdet
+    if (field.type == 'start') {
+      if (card.rank == 1 || card.rank == 13 || card.suit == Suit.joker) {
+        final int boardMainFieldIndex = fields.asMap().entries
+            .firstWhere((entry) => entry.value.player == player && entry.value.type == 'immunity')
+            .key;
+        if (!pieces.any((p) => p.fieldIndex == boardMainFieldIndex)) {
+          piece.fieldIndex = boardMainFieldIndex;
+        } else {
+          return false;
+        }
       } else {
-        _sendPieceBackToStart(occupyingPiece);
+        return false;
       }
+    } else {
+      int boardSize = 64;
+      int newFieldIndex = (piece.fieldIndex + moveValue);
+      if (newFieldIndex >= boardSize) {
+        newFieldIndex = newFieldIndex % boardSize;
+      } else if (newFieldIndex < 0) {
+        newFieldIndex = boardSize + newFieldIndex;
+      }
+
+      // Sjekk om det nye feltet er opptatt
+      final occupyingPiece = pieces.firstWhere(
+        (p) => p.fieldIndex == newFieldIndex,
+        orElse: () => DogPiece(player: -1, fieldIndex: -1),
+      );
+      if (occupyingPiece.player != -1) {
+        if (occupyingPiece.player == player) {
+          // Kan ikke lande på egen brikke
+          return false;
+        } else {
+          _sendPieceBackToStart(occupyingPiece);
+        }
+      }
+
+      // Flytt brikken
+      piece.fieldIndex = newFieldIndex;
     }
 
-    // Flytt brikken
-    piece.fieldIndex = newFieldIndex;
+    // Fjern kortet og bytt tur
+    playerHands[player - 1].remove(card);
+    discardPile.add(card);
+    passTurn();
+    return true;
   }
 
-  // Fjern kortet og bytt tur
-  playerHands[player - 1].remove(card);
-  discardPile.add(card);
-  passTurn();
-  return true;
-}
+  /// Ny! Utfører et "syver-trekk", med liste av steg
+  /// Returnerer true ved suksess, false ved ugyldig trekk
+  bool playSevenCard(int player, DogCard card, List<SevenMoveStep> steps) {
+    if (player != currentPlayer) return false;
+    if (!playerHands[player - 1].contains(card)) return false;
+    if (card.rank != 7) return false;
+    int sum = steps.fold(0, (prev, s) => prev + s.steps.abs());
+    if (sum != 7) return false;
 
+    // Brukes for å holde styr på midlertidig board-tilstand under utførelse
+    final usedPieces = <DogPiece, int>{};
+
+    // Valider alle steg først: (må ikke lande på egen brikke, ikke gå over mål osv.)
+    for (final step in steps) {
+      // Finn startposisjon for denne brikken
+      int fromIdx = usedPieces[step.piece] ?? step.piece.fieldIndex;
+      int toIdx = fromIdx + step.steps;
+
+      // Board wrap
+      if (toIdx >= 64) toIdx = toIdx % 64;
+      if (toIdx < 0) toIdx = 64 + toIdx;
+
+      // Kan ikke lande på egen brikke
+      final occupying = pieces.firstWhere(
+        (p) => p.fieldIndex == toIdx,
+        orElse: () => DogPiece(player: -1, fieldIndex: -1),
+      );
+      if (occupying.player == player) return false;
+
+      // Oppdater for neste steg med samme brikke
+      usedPieces[step.piece] = toIdx;
+    }
+
+    // Utfør stegene, slå ut fiender
+    for (final step in steps) {
+      int fromIdx = step.piece.fieldIndex;
+      int toIdx = fromIdx + step.steps;
+      if (toIdx >= 64) toIdx = toIdx % 64;
+      if (toIdx < 0) toIdx = 64 + toIdx;
+
+      final occupying = pieces.firstWhere(
+        (p) => p.fieldIndex == toIdx,
+        orElse: () => DogPiece(player: -1, fieldIndex: -1),
+      );
+      if (occupying.player != -1 && occupying.player != player) {
+        _sendPieceBackToStart(occupying);
+      }
+      step.piece.fieldIndex = toIdx;
+    }
+
+    // Fjern kortet og bytt tur
+    playerHands[player - 1].remove(card);
+    discardPile.add(card);
+    passTurn();
+    return true;
+  }
 
   // Sender en brikke tilbake til et ledig startfelt
   void _sendPieceBackToStart(DogPiece piece) {
@@ -148,7 +213,7 @@ bool canPieceMoveWithValue(DogPiece piece, DogCard card, int moveValue) {
         .where((entry) => entry.value.type == 'start' && entry.value.player == piece.player)
         .map((entry) => entry.key)
         .toList();
-    
+
     // Finn første ledige startfelt
     for (final startIdx in playerStartIndices) {
       if (!pieces.any((p) => p.fieldIndex == startIdx)) {
@@ -156,15 +221,13 @@ bool canPieceMoveWithValue(DogPiece piece, DogCard card, int moveValue) {
         return;
       }
     }
-    // Hvis ingen startfelt er ledige, skjer ingenting (for enkelhetens skyld)
+    // Hvis ingen startfelt er ledige, skjer ingenting
   }
 
-  /// Oppdaterer currentPlayer til neste spiller.
-  /// Denne metoden er nå offentlig, slik at du kan kalle den fra en "Pass turn"-knapp.
   void passTurn() {
     currentPlayer = (currentPlayer % 4) + 1;
   }
-  
+
   void dealNewRound() {
     if (deck.length < cardsPerPlayer * 4) {
       deck.addAll(discardPile);
@@ -189,10 +252,7 @@ bool canPieceMoveWithValue(DogPiece piece, DogCard card, int moveValue) {
   Field fieldOfPiece(DogPiece piece) => fields[piece.fieldIndex];
   bool isRoundOver() => playerHands.every((h) => h.isEmpty);
 
-
-  /// Sjekker om en brikke kan flyttes med et bestemt kort.
   bool canPieceMove(DogPiece piece, DogCard card) {
-    // Sjekker om brikken kan flytte fra startområdet med 1, 13 eller joker
     if (fields[piece.fieldIndex].type == 'start') {
       if (card.rank == 1 || card.rank == 13 || card.suit == Suit.joker) {
         final int boardMainFieldIndex = fields.asMap().entries
@@ -204,13 +264,13 @@ bool canPieceMoveWithValue(DogPiece piece, DogCard card, int moveValue) {
       return false;
     }
 
-    // Forenklet bevegelse: flytt fremover med kortets verdi
     int moveValue = card.rank ?? 0;
-    if (card.rank == 4) {
-        moveValue = -4; // Spesialtilfelle: flytt bakover
-    } else if (card.rank == 7) {
-        moveValue = 7;
-    }
+if (card.rank == 4) {
+  moveValue = -4;
+} else if (card.rank == 7) {
+  moveValue = 7;
+}
+
 
     final int boardSize = 64;
     int newFieldIndex = (piece.fieldIndex + moveValue);
@@ -220,7 +280,6 @@ bool canPieceMoveWithValue(DogPiece piece, DogCard card, int moveValue) {
       newFieldIndex = boardSize + newFieldIndex;
     }
 
-    // Sjekk om det nye feltet er opptatt av en egen brikke
     final occupyingPiece = pieces.firstWhere(
       (p) => p.fieldIndex == newFieldIndex,
       orElse: () => DogPiece(player: -1, fieldIndex: -1),
@@ -228,7 +287,6 @@ bool canPieceMoveWithValue(DogPiece piece, DogCard card, int moveValue) {
     return occupyingPiece.player == -1 || occupyingPiece.player != piece.player;
   }
 
-  /// Sjekker om en spiller har mulige trekk.
   bool hasPossibleMoves(int player) {
     final playerPieces = piecesOf(player);
     final playerHand = handOf(player);
@@ -242,34 +300,31 @@ bool canPieceMoveWithValue(DogPiece piece, DogCard card, int moveValue) {
     return false;
   }
 
-  /// Henter en liste over alle mulige trekk for en gitt spiller.
-  /// Hvert trekk er representert av en [Move]-instans.
-List<Move> getPossibleMovesForPlayer(int player) {
-  final List<Move> possibleMoves = [];
-  final playerPieces = piecesOf(player);
-  final playerHand = handOf(player);
+  List<Move> getPossibleMovesForPlayer(int player) {
+    final List<Move> possibleMoves = [];
+    final playerPieces = piecesOf(player);
+    final playerHand = handOf(player);
 
-  for (final piece in playerPieces) {
-    for (final card in playerHand) {
-      if (card.rank == 4) {
-        // Kan flytte 4 fremover
-        if (canPieceMoveWithValue(piece, card, 4)) {
-          possibleMoves.add(Move(piece: piece, card: card, moveValue: 4));
-        }
-        // Kan flytte 4 bakover
-        if (canPieceMoveWithValue(piece, card, -4)) {
-          possibleMoves.add(Move(piece: piece, card: card, moveValue: -4));
-        }
-      } else {
-        // Standard
-        int value = card.rank ?? 0;
-        if (card.rank == 7) value = 7; // Evt. 7-logikk senere
-        if (canPieceMoveWithValue(piece, card, value)) {
-          possibleMoves.add(Move(piece: piece, card: card, moveValue: value));
+    for (final piece in playerPieces) {
+      for (final card in playerHand) {
+        if (card.rank == 4) {
+          // Kan flytte 4 fremover
+          if (canPieceMoveWithValue(piece, card, 4)) {
+            possibleMoves.add(Move(piece: piece, card: card, moveValue: 4));
+          }
+          // Kan flytte 4 bakover
+          if (canPieceMoveWithValue(piece, card, -4)) {
+            possibleMoves.add(Move(piece: piece, card: card, moveValue: -4));
+          }
+        } else {
+          int value = card.rank ?? 0;
+          if (card.rank == 7) value = 7; // NB: syver-variant (må håndteres med playSevenCard)
+          if (canPieceMoveWithValue(piece, card, value)) {
+            possibleMoves.add(Move(piece: piece, card: card, moveValue: value));
+          }
         }
       }
     }
+    return possibleMoves;
   }
-  return possibleMoves;
-}
 }
