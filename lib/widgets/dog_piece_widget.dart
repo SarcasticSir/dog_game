@@ -1,3 +1,6 @@
+// lib\widgets\dog_piece_widget.dart
+
+
 import 'package:flutter/material.dart';
 
 class DogPieceWidget extends StatelessWidget {
