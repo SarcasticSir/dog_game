@@ -153,6 +153,12 @@ class GameManager {
     return true;
   }
 
+  // lib\game_manager.dart
+
+// ... eksisterende kode ...
+
+// start legg inn kode her (og så viser du de siste linjene før)
+
   /// Ny! Utfører et "syver-trekk", med liste av steg
   /// Returnerer true ved suksess, false ved ugyldig trekk
   bool playSevenCard(int player, DogCard card, List<SevenMoveStep> steps) {
@@ -163,44 +169,58 @@ class GameManager {
     if (sum != 7) return false;
 
     // Brukes for å holde styr på midlertidig board-tilstand under utførelse
-    final usedPieces = <DogPiece, int>{};
+    final tempPieces = Map<int, DogPiece>.fromEntries(pieces.map((p) => MapEntry(p.fieldIndex, p)));
 
-    // Valider alle steg først: (må ikke lande på egen brikke, ikke gå over mål osv.)
+    // Valider alle steg først:
     for (final step in steps) {
-      // Finn startposisjon for denne brikken
-      int fromIdx = usedPieces[step.piece] ?? step.piece.fieldIndex;
-      int toIdx = fromIdx + step.steps;
+      int currentPieceIndex = step.piece.fieldIndex;
+      if (step.steps > 0) {
+        for (int i = 1; i <= step.steps; i++) {
+          int nextIndex = (currentPieceIndex + i) % 64;
+          
+          // Sjekk om det er et immunitetsfelt for en annen spiller
+          if (fields[nextIndex].type == 'immunity' && fields[nextIndex].player != player) {
+            return false;
+          }
 
-      // Board wrap
-      if (toIdx >= 64) toIdx = toIdx % 64;
-      if (toIdx < 0) toIdx = 64 + toIdx;
+          // Sjekk om feltet er opptatt av en egen brikke
+          final occupying = tempPieces[nextIndex];
+          if (occupying != null && occupying.player == player) {
+            return false;
+          }
+        }
+      } else { // Steg bakover
+        for (int i = -1; i >= step.steps; i--) {
+          int nextIndex = (currentPieceIndex + i + 64) % 64;
+          
+          // Sjekk om det er et immunitetsfelt for en annen spiller
+          if (fields[nextIndex].type == 'immunity' && fields[nextIndex].player != player) {
+            return false;
+          }
 
-      // Kan ikke lande på egen brikke
-      final occupying = pieces.firstWhere(
-        (p) => p.fieldIndex == toIdx,
-        orElse: () => DogPiece(player: -1, fieldIndex: -1),
-      );
-      if (occupying.player == player) return false;
-
-      // Oppdater for neste steg med samme brikke
-      usedPieces[step.piece] = toIdx;
+          // Sjekk om feltet er opptatt av en egen brikke
+          final occupying = tempPieces[nextIndex];
+          if (occupying != null && occupying.player == player) {
+            return false;
+          }
+        }
+      }
+      
+      // Simuler flyttingen for å oppdatere den midlertidige tilstanden
+      tempPieces.remove(step.piece.fieldIndex);
+      tempPieces[step.toIndex] = step.piece;
     }
 
     // Utfør stegene, slå ut fiender
     for (final step in steps) {
-      int fromIdx = step.piece.fieldIndex;
-      int toIdx = fromIdx + step.steps;
-      if (toIdx >= 64) toIdx = toIdx % 64;
-      if (toIdx < 0) toIdx = 64 + toIdx;
-
       final occupying = pieces.firstWhere(
-        (p) => p.fieldIndex == toIdx,
+        (p) => p.fieldIndex == step.toIndex,
         orElse: () => DogPiece(player: -1, fieldIndex: -1),
       );
       if (occupying.player != -1 && occupying.player != player) {
         _sendPieceBackToStart(occupying);
       }
-      step.piece.fieldIndex = toIdx;
+      step.piece.fieldIndex = step.toIndex;
     }
 
     // Fjern kortet og bytt tur
@@ -209,13 +229,10 @@ class GameManager {
     passTurn();
     return true;
   }
+// Her slutter den nye koden
 
   // Sender en brikke tilbake til et ledig startfelt
   void _sendPieceBackToStart(DogPiece piece) {
-    final playerStartIndices = fields.asMap().entries
-        .where((entry) => entry.value.type == 'start' && entry.value.player == piece.player)
-        .map((entry) => entry.key)
-        .toList();
 
     // Finn første ledige startfelt
     for (final startIdx in playerStartIndices) {
