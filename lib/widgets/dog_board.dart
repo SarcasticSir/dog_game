@@ -1,10 +1,8 @@
-//lib\widgets\dog_board.dart
-
 import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../models/field.dart';
-import '../game_manager.dart';
+import '../game_manager.dart' as gm;
 import '../utils/board_rotation.dart';
 import 'octagon_painter.dart';
 import 'diamond_painter.dart';
@@ -22,15 +20,6 @@ class SevenMoveStep {
   SevenMoveStep(this.piece, this.steps, this.fromIndex, this.toIndex);
 }
 
-class SevenMovePart {
-  final DogPiece piece;
-  final int fromIndex;
-  final int toIndex;
-  final int steps;
-
-  SevenMovePart({required this.piece, required this.fromIndex, required this.toIndex, required this.steps});
-}
-
 class DogBoard extends StatefulWidget {
   const DogBoard({super.key});
   @override
@@ -39,16 +28,15 @@ class DogBoard extends StatefulWidget {
 
 class _DogBoardState extends State<DogBoard> {
   late List<Field> fields;
-  late GameManager gameManager;
+  late gm.GameManager gameManager;
 
   DogCard? selectedCard;
-  DogCard? hoveredCard;
   DogPiece? selectedPiece;
-  int? selectedMoveValue; // Brukes kun ved 4-kort
+  int? selectedMoveValue;
+  int? selectedJokerRank; // NEW: which rank the joker will mimic, if chosen
 
   int myPlayerNumber = 1;
 
-  // Syvermodus-tilstand
   bool inSevenMode = false;
   int remainingSevenSteps = 7;
   List<SevenMoveStep> sevenMoves = [];
@@ -65,7 +53,7 @@ class _DogBoardState extends State<DogBoard> {
   void initState() {
     super.initState();
     fields = _manualFields();
-    gameManager = GameManager(fields: fields);
+    gameManager = gm.GameManager(fields: fields);
     myPlayerNumber = gameManager.currentPlayer;
   }
 
@@ -76,42 +64,90 @@ class _DogBoardState extends State<DogBoard> {
 
   Set<DogCard> getPlayableCards(DogPiece? piece) {
     if (piece == null) return {};
-    return gameManager.playerHands[myPlayerNumber - 1]
+    return gameManager
+        .handOf(myPlayerNumber)
         .where((card) => gameManager.canPieceMove(piece, card))
         .toSet();
   }
 
   DogPiece? getTargetedEnemyPiece({int? moveValueOverride}) {
     if (selectedCard == null || selectedPiece == null) return null;
+    if (selectedCard!.rank == 7) return null; // handled in seven mode
 
     int player = myPlayerNumber;
     DogPiece piece = selectedPiece!;
     Field field = fields[piece.fieldIndex];
 
-    int boardMainFieldIndex = fields.asMap().entries
-        .firstWhere((entry) =>
-            entry.value.player == player && entry.value.type == 'immunity')
-        .key;
-
     int newFieldIndex;
     int boardSize = 64;
     int? moveValue;
-    if (selectedCard!.rank == 4) {
-      // Bruk valgt retning hvis valgt
+
+    if (selectedCard!.suit == Suit.joker) {
+      // Joker: use selectedJokerRank and selectedMoveValue
+      final rank = selectedJokerRank;
+      if (rank == null) return null;
+      // 4 and 1 may have ±/multi choices
+      if (rank == 4) {
+        moveValue = moveValueOverride ?? selectedMoveValue;
+        if (moveValue == null) return null;
+      } else if (rank == 1) {
+        // Ace chosen via joker
+        // If piece is in start, move out; no capture
+        if (field.type == 'start') {
+          int boardMainFieldIndex = fields.asMap().entries
+              .firstWhere((entry) =>
+                  entry.value.player == player &&
+                  entry.value.type == 'immunity')
+              .key;
+          final occupyingPiece = gameManager.pieces.firstWhere(
+            (p) => p.fieldIndex == boardMainFieldIndex,
+            orElse: () => DogPiece(player: -1, fieldIndex: -1),
+          );
+          if (occupyingPiece.player != -1 &&
+              occupyingPiece.player != myPlayerNumber) {
+            return occupyingPiece;
+          }
+          return null;
+        }
+        moveValue = moveValueOverride ?? selectedMoveValue;
+        if (moveValue == null) return null;
+      } else {
+        moveValue = rank;
+      }
+    } else if (selectedCard!.rank == 4) {
+      moveValue = moveValueOverride ?? selectedMoveValue;
+      if (moveValue == null) return null;
+    } else if (selectedCard!.rank == 1) {
+      if (field.type == 'start') {
+        int boardMainFieldIndex = fields.asMap().entries
+            .firstWhere((entry) =>
+                entry.value.player == player &&
+                entry.value.type == 'immunity')
+            .key;
+        final occupyingPiece = gameManager.pieces.firstWhere(
+          (p) => p.fieldIndex == boardMainFieldIndex,
+          orElse: () => DogPiece(player: -1, fieldIndex: -1),
+        );
+        if (occupyingPiece.player != -1 &&
+            occupyingPiece.player != myPlayerNumber) {
+          return occupyingPiece;
+        }
+        return null;
+      }
       moveValue = moveValueOverride ?? selectedMoveValue;
       if (moveValue == null) return null;
     } else {
       moveValue = selectedCard!.rank ?? 0;
     }
 
+    if (moveValue == 0) return null;
+
     if (field.type == 'start') {
-      if (selectedCard!.rank == 1 ||
-          selectedCard!.rank == 13 ||
-          selectedCard!.suit == Suit.joker) {
-        newFieldIndex = boardMainFieldIndex;
-      } else {
-        return null;
-      }
+      int boardMainFieldIndex = fields.asMap().entries
+          .firstWhere((entry) =>
+              entry.value.player == player && entry.value.type == 'immunity')
+          .key;
+      newFieldIndex = boardMainFieldIndex;
     } else {
       newFieldIndex = piece.fieldIndex + moveValue;
       if (newFieldIndex >= boardSize) {
@@ -125,10 +161,97 @@ class _DogBoardState extends State<DogBoard> {
       (p) => p.fieldIndex == newFieldIndex,
       orElse: () => DogPiece(player: -1, fieldIndex: -1),
     );
-    if (occupyingPiece.player != -1 && occupyingPiece.player != myPlayerNumber) {
+    if (occupyingPiece.player != -1 &&
+        occupyingPiece.player != myPlayerNumber) {
       return occupyingPiece;
     }
     return null;
+  }
+
+  void _resetSevenMode({bool keepCard = false}) {
+    for (final s in sevenMoves) {
+      s.piece.fieldIndex = s.fromIndex;
+    }
+    inSevenMode = false;
+    remainingSevenSteps = 7;
+    currentSevenPiece = null;
+    sevenMoves.clear();
+    selectedMoveValue = null;
+    selectedJokerRank = null;
+    if (!keepCard) {
+      selectedCard = null;
+      selectedPiece = null;
+    }
+  }
+
+  Future<void> _promptJokerValueSelection() async {
+    final DogPiece? piece = selectedPiece;
+    final DogCard? card = selectedCard;
+    if (piece == null || card == null) return;
+    // Build list of valid ranks (Ace=1, etc.)
+    final List<int> candidateValues = [
+      -4,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+    ];
+    final List<int> validValues = [];
+    for (final v in candidateValues) {
+      if (gameManager.canPieceMoveWithValue(piece, card, v)) {
+        validValues.add(v);
+      }
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Vennligst velg verdi på jokeren'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final v in validValues)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4.0),
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(dialogContext).pop();
+                        setState(() {
+                          selectedJokerRank = v;
+                          selectedMoveValue = null;
+                        });
+                        // If 7, enter seven-mode; otherwise 4/1 will show selection UI
+                      },
+                      child: Text(v == -4 ? '-4' : v.toString()),
+                    ),
+                  ),
+                const SizedBox(height: 8),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Avbryt'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _handleCardTap(DogCard card) {
@@ -143,17 +266,19 @@ class _DogBoardState extends State<DogBoard> {
     final playable = getPlayableCards(selectedPiece).contains(card);
     if (!playable) return;
 
+    final bool wasSame = selectedCard == card;
+    if (inSevenMode || sevenMoves.isNotEmpty) {
+      _resetSevenMode();
+    }
     setState(() {
-      if (selectedCard == card) {
+      if (wasSame) {
         selectedCard = null;
         selectedMoveValue = null;
-        inSevenMode = false;
-        sevenMoves.clear();
-        remainingSevenSteps = 7;
-        currentSevenPiece = null;
+        selectedJokerRank = null;
       } else {
         selectedCard = card;
         selectedMoveValue = null;
+        selectedJokerRank = null;
         if (card.rank == 7) {
           inSevenMode = true;
           sevenMoves.clear();
@@ -178,14 +303,15 @@ class _DogBoardState extends State<DogBoard> {
           selectedPiece = null;
           selectedCard = null;
           selectedMoveValue = null;
+          selectedJokerRank = null;
         } else {
           selectedPiece = piece;
           selectedCard = null;
           selectedMoveValue = null;
+          selectedJokerRank = null;
         }
       });
     } else {
-      // Syvermodus: Velg brikke som skal flyttes i denne "delen" av syvertrekket
       if (piece.player != myPlayerNumber) return;
       setState(() {
         currentSevenPiece = piece;
@@ -200,74 +326,161 @@ class _DogBoardState extends State<DogBoard> {
   }
 
   void _handleSevenFieldTap(int toIndex) {
-    // Flytt currentSevenPiece til toIndex, trekk fra steg, legg til i sevenMoves
     if (currentSevenPiece == null || !inSevenMode) return;
-
     int fromIndex = currentSevenPiece!.fieldIndex;
     int steps = (toIndex - fromIndex + 64) % 64;
     if (steps == 0 || steps > remainingSevenSteps) return;
-
-    setState(() {
-      sevenMoves.add(SevenMoveStep(currentSevenPiece!, steps, fromIndex, toIndex));
-      remainingSevenSteps -= steps;
-      // Brikken "flyttes" midlertidig (visuelt for bruker)
-      currentSevenPiece = null;
-      if (remainingSevenSteps == 0) {
-        // Klar til å bekrefte syver-trekk!
+    // Validate path
+    bool valid = true;
+    for (int i = 1; i <= steps; i++) {
+      int pos = (fromIndex + i) % 64;
+      final occupant = gameManager.pieces.firstWhere(
+        (p) => p.fieldIndex == pos,
+        orElse: () => DogPiece(player: -1, fieldIndex: -1),
+      );
+      if (i < steps) {
+        if (occupant.player == myPlayerNumber && occupant.player != -1) {
+          valid = false;
+          break;
+        }
+        if (occupant.player != -1 && occupant.isImmune) {
+          valid = false;
+          break;
+        }
       }
+      if (i == steps) {
+        if (occupant.player == myPlayerNumber) {
+          valid = false;
+          break;
+        }
+        if (occupant.player != -1 && occupant.isImmune) {
+          valid = false;
+          break;
+        }
+      }
+    }
+    if (!valid) return;
+    currentSevenPiece!.fieldIndex = toIndex;
+    setState(() {
+      sevenMoves
+          .add(SevenMoveStep(currentSevenPiece!, steps, fromIndex, toIndex));
+      remainingSevenSteps -= steps;
+      currentSevenPiece = null;
     });
   }
 
   void _handleConfirmSevenMoves() {
-    // TODO: implementer denne til å sende trekk til GameManager
-    // Du kan gi sevenMoves-listen til gameManager
-    setState(() {
-      inSevenMode = false;
-      selectedCard = null;
-      selectedPiece = null;
-      selectedMoveValue = null;
-      remainingSevenSteps = 7;
-      sevenMoves.clear();
-      currentSevenPiece = null;
-      myPlayerNumber = gameManager.currentPlayer;
-    });
+    if (!inSevenMode ||
+        remainingSevenSteps != 0 ||
+        selectedCard == null) {
+      return;
+    }
+    // Wrap return in braces to avoid curly-brace lint
+    for (final s in sevenMoves) {
+      s.piece.fieldIndex = s.fromIndex;
+    }
+    final gmSteps = sevenMoves
+        .map((s) => gm.SevenMoveStep(
+              piece: s.piece,
+              fromIndex: s.fromIndex,
+              toIndex: s.toIndex,
+              steps: s.steps,
+            ))
+        .toList();
+    final bool success =
+        gameManager.playSevenCard(myPlayerNumber, selectedCard!, gmSteps);
+    if (success) {
+      setState(() {
+        inSevenMode = false;
+        selectedCard = null;
+        selectedPiece = null;
+        selectedMoveValue = null;
+        selectedJokerRank = null;
+        remainingSevenSteps = 7;
+        sevenMoves.clear();
+        currentSevenPiece = null;
+        myPlayerNumber = gameManager.currentPlayer;
+      });
+    } else {
+      setState(() {
+        sevenMoves.clear();
+        remainingSevenSteps = 7;
+        currentSevenPiece = null;
+      });
+    }
   }
 
   void _handleCancelSeven() {
+    _resetSevenMode(keepCard: true);
     setState(() {
-      inSevenMode = false;
-      selectedCard = null;
-      selectedPiece = null;
-      selectedMoveValue = null;
-      remainingSevenSteps = 7;
-      sevenMoves.clear();
-      currentSevenPiece = null;
+      // keep selectedCard and selectedPiece
     });
   }
 
   void _handlePlayCardButton() {
     if (selectedCard != null && selectedPiece != null) {
-      int moveValue = selectedCard!.rank ?? 0;
-      if (selectedCard!.rank == 4) {
+      int moveValue;
+      if (selectedCard!.suit == Suit.joker) {
+        // Piece in start: move out
+        final field = fields[selectedPiece!.fieldIndex];
+        if (field.type == 'start') {
+          moveValue = 1;
+        } else {
+          // Choose rank if not set
+          final rank = selectedJokerRank;
+          if (rank == null) {
+            _promptJokerValueSelection();
+            return;
+          }
+          if (rank == 7) {
+            // Seven mode; no direct play
+            return;
+          }
+          if (rank == 4 || rank == 1) {
+            // Need direction or 1/11 selection
+            if (selectedMoveValue == null) {
+              // Wait for selection
+              return;
+            }
+            moveValue = selectedMoveValue!;
+          } else {
+            moveValue = rank;
+          }
+        }
+      } else if (selectedCard!.rank == 4) {
         if (selectedMoveValue == null) {
           print("Velg retning for 4-kortet.");
           return;
         }
         moveValue = selectedMoveValue!;
+      } else if (selectedCard!.rank == 1) {
+        final field = fields[selectedPiece!.fieldIndex];
+        if (field.type == 'start') {
+          moveValue = 1;
+        } else {
+          if (selectedMoveValue == null) {
+            print("Velg antall steg for esset.");
+            return;
+          }
+          moveValue = selectedMoveValue!;
+        }
+      } else if (selectedCard!.rank == 7) {
+        return;
+      } else {
+        moveValue = selectedCard!.rank ?? 0;
       }
-
       final bool moveSuccessful = gameManager.playCard(
-        gameManager.currentPlayer,
+        myPlayerNumber,
         selectedCard!,
         selectedPiece!,
         moveValue,
       );
-
       if (moveSuccessful) {
         setState(() {
           selectedCard = null;
           selectedPiece = null;
           selectedMoveValue = null;
+          selectedJokerRank = null;
           myPlayerNumber = gameManager.currentPlayer;
         });
       } else {
@@ -283,21 +496,76 @@ class _DogBoardState extends State<DogBoard> {
       selectedCard = null;
       selectedPiece = null;
       selectedMoveValue = null;
+      selectedJokerRank = null;
     });
   }
-
-
-    List<Field> _manualFields() {
+  /// Defines the positions and types of all board fields. This method
+  /// constructs the main loop of 64 positions plus start and goal fields.
+  List<Field> _manualFields() {
     final coords = [
-      Offset(0.10, 0.10), Offset(0.15, 0.10), Offset(0.20, 0.10), Offset(0.25, 0.15), Offset(0.30, 0.20), Offset(0.35, 0.25), Offset(0.40, 0.30),
-      Offset(0.45, 0.35), Offset(0.50, 0.35), Offset(0.55, 0.35), Offset(0.60, 0.30), Offset(0.65, 0.25), Offset(0.70, 0.20), Offset(0.75, 0.15),
-      Offset(0.80, 0.10), Offset(0.85, 0.10), Offset(0.90, 0.10), Offset(0.90, 0.15), Offset(0.90, 0.20), Offset(0.85, 0.25), Offset(0.80, 0.30),
-      Offset(0.75, 0.35), Offset(0.70, 0.40), Offset(0.65, 0.45), Offset(0.65, 0.50), Offset(0.65, 0.55), Offset(0.70, 0.60), Offset(0.75, 0.65),
-      Offset(0.80, 0.70), Offset(0.85, 0.75), Offset(0.90, 0.80), Offset(0.90, 0.85), Offset(0.90, 0.90), Offset(0.85, 0.90), Offset(0.80, 0.90),
-      Offset(0.75, 0.85), Offset(0.70, 0.80), Offset(0.65, 0.75), Offset(0.60, 0.70), Offset(0.55, 0.65), Offset(0.50, 0.65), Offset(0.45, 0.65),
-      Offset(0.40, 0.70), Offset(0.35, 0.75), Offset(0.30, 0.80), Offset(0.25, 0.85), Offset(0.20, 0.90), Offset(0.15, 0.90), Offset(0.10, 0.90),
-      Offset(0.10, 0.85), Offset(0.10, 0.80), Offset(0.15, 0.75), Offset(0.20, 0.70), Offset(0.25, 0.65), Offset(0.30, 0.60), Offset(0.35, 0.55),
-      Offset(0.35, 0.50), Offset(0.35, 0.45), Offset(0.30, 0.40), Offset(0.25, 0.35), Offset(0.20, 0.30), Offset(0.15, 0.25), Offset(0.10, 0.20),
+      Offset(0.10, 0.10),
+      Offset(0.15, 0.10),
+      Offset(0.20, 0.10),
+      Offset(0.25, 0.15),
+      Offset(0.30, 0.20),
+      Offset(0.35, 0.25),
+      Offset(0.40, 0.30),
+      Offset(0.45, 0.35),
+      Offset(0.50, 0.35),
+      Offset(0.55, 0.35),
+      Offset(0.60, 0.30),
+      Offset(0.65, 0.25),
+      Offset(0.70, 0.20),
+      Offset(0.75, 0.15),
+      Offset(0.80, 0.10),
+      Offset(0.85, 0.10),
+      Offset(0.90, 0.10),
+      Offset(0.90, 0.15),
+      Offset(0.90, 0.20),
+      Offset(0.85, 0.25),
+      Offset(0.80, 0.30),
+      Offset(0.75, 0.35),
+      Offset(0.70, 0.40),
+      Offset(0.65, 0.45),
+      Offset(0.65, 0.50),
+      Offset(0.65, 0.55),
+      Offset(0.70, 0.60),
+      Offset(0.75, 0.65),
+      Offset(0.80, 0.70),
+      Offset(0.85, 0.75),
+      Offset(0.90, 0.80),
+      Offset(0.90, 0.85),
+      Offset(0.90, 0.90),
+      Offset(0.85, 0.90),
+      Offset(0.80, 0.90),
+      Offset(0.75, 0.85),
+      Offset(0.70, 0.80),
+      Offset(0.65, 0.75),
+      Offset(0.60, 0.70),
+      Offset(0.55, 0.65),
+      Offset(0.50, 0.65),
+      Offset(0.45, 0.65),
+      Offset(0.40, 0.70),
+      Offset(0.35, 0.75),
+      Offset(0.30, 0.80),
+      Offset(0.25, 0.85),
+      Offset(0.20, 0.90),
+      Offset(0.15, 0.90),
+      Offset(0.10, 0.90),
+      Offset(0.10, 0.85),
+      Offset(0.10, 0.80),
+      Offset(0.15, 0.75),
+      Offset(0.20, 0.70),
+      Offset(0.25, 0.65),
+      Offset(0.30, 0.60),
+      Offset(0.35, 0.55),
+      Offset(0.35, 0.50),
+      Offset(0.35, 0.45),
+      Offset(0.30, 0.40),
+      Offset(0.25, 0.35),
+      Offset(0.20, 0.30),
+      Offset(0.15, 0.25),
+      Offset(0.10, 0.20),
       Offset(0.10, 0.15),
     ];
     final List<Field> startFields = [
@@ -358,17 +626,99 @@ class _DogBoardState extends State<DogBoard> {
     ];
   }
 
+
+
+
   @override
   Widget build(BuildContext context) {
-    final bool canMove = gameManager.getPossibleMovesForPlayer(myPlayerNumber).isNotEmpty;
+    final bool canMove =
+        gameManager.getPossibleMovesForPlayer(myPlayerNumber).isNotEmpty;
     final bool isMyTurn = gameManager.currentPlayer == myPlayerNumber;
-    final bool canPlayCard = isMyTurn && selectedCard != null && selectedPiece != null;
+    final bool canPlayCard =
+        isMyTurn && selectedCard != null && selectedPiece != null;
 
     final movablePieces = getMovablePieces(myPlayerNumber);
     final targetedEnemyPiece = getTargetedEnemyPiece();
 
+    // Compute targets and impacted pieces for seven-card mode
+    final Set<int> sevenSelectedTargets = {};
+    final Set<int> sevenValidTargets = {};
+    final Set<DogPiece> sevenTargetedPieces = {};
+    if (inSevenMode) {
+      // Already chosen seven-move targets
+      for (final s in sevenMoves) {
+        sevenSelectedTargets.add(s.toIndex);
+        // Add pieces along the path to this target
+        int fromIdx = s.fromIndex;
+        for (int i = 1; i <= s.steps; i++) {
+          int pos = (fromIdx + i) % 64;
+          final occupier = gameManager.pieces.firstWhere(
+            (p) => p.fieldIndex == pos,
+            orElse: () => DogPiece(player: -1, fieldIndex: -1),
+          );
+          if (occupier.player != -1 && occupier.player != myPlayerNumber) {
+            sevenTargetedPieces.add(occupier);
+          }
+        }
+      }
+      // Valid targets for the current piece being moved
+      if (currentSevenPiece != null) {
+        int baseFrom = currentSevenPiece!.fieldIndex;
+        // Find last destination of this piece in previous seven-moves
+        for (final s in sevenMoves.reversed) {
+          if (s.piece == currentSevenPiece) {
+            baseFrom = s.toIndex;
+            break;
+          }
+        }
+        for (int step = 1; step <= remainingSevenSteps; step++) {
+          int toIdx = (baseFrom + step) % 64;
+          bool valid = true;
+          // Validate path
+          for (int i = 1; i <= step; i++) {
+            int pos = (baseFrom + i) % 64;
+            final occupant = gameManager.pieces.firstWhere(
+              (p) => p.fieldIndex == pos,
+              orElse: () => DogPiece(player: -1, fieldIndex: -1),
+            );
+            if (i < step) {
+              if (occupant.player == myPlayerNumber && occupant.player != -1) {
+                valid = false;
+                break;
+              }
+              if (occupant.player != -1 && occupant.isImmune) {
+                valid = false;
+                break;
+              }
+            }
+            if (i == step) {
+              if (occupant.player == myPlayerNumber) {
+                valid = false;
+                break;
+              }
+              if (occupant.player != -1 && occupant.isImmune) {
+                valid = false;
+                break;
+              }
+            }
+          }
+          if (valid) {
+            sevenValidTargets.add(toIdx);
+            final occupying = gameManager.pieces.firstWhere(
+              (p) => p.fieldIndex == toIdx,
+              orElse: () => DogPiece(player: -1, fieldIndex: -1),
+            );
+            if (occupying.player != -1 && occupying.player != myPlayerNumber) {
+              sevenTargetedPieces.add(occupying);
+            }
+          }
+        }
+      }
+    }
+
     return LayoutBuilder(
       builder: (context, constraints) {
+        // Suggest rotating for portrait orientation
         if (constraints.maxWidth <= constraints.maxHeight * 1.3) {
           return const Center(
             child: Column(
@@ -420,6 +770,7 @@ class _DogBoardState extends State<DogBoard> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Left side: control buttons and hand
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: Column(
@@ -432,8 +783,11 @@ class _DogBoardState extends State<DogBoard> {
                         Stack(
                           alignment: Alignment.center,
                           children: [
-                            // 4-kort
-                            if (canPlayCard && selectedCard != null && selectedCard!.rank == 4 && selectedMoveValue == null)
+                            // Special handling for 4-card: choose direction
+                            if (canPlayCard &&
+                                selectedCard != null &&
+                                selectedCard!.rank == 4 &&
+                                selectedMoveValue == null)
                               Column(
                                 children: [
                                   ElevatedButton(
@@ -441,7 +795,8 @@ class _DogBoardState extends State<DogBoard> {
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.green,
                                       foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16, vertical: 12),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
                                       ),
@@ -461,7 +816,8 @@ class _DogBoardState extends State<DogBoard> {
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.deepOrange,
                                       foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16, vertical: 12),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
                                       ),
@@ -477,13 +833,18 @@ class _DogBoardState extends State<DogBoard> {
                                   ),
                                 ],
                               )
-                            else if (canPlayCard && selectedCard != null && selectedCard!.rank == 4 && selectedMoveValue != null)
+                            // Confirm for 4-card after direction chosen
+                            else if (canPlayCard &&
+                                selectedCard != null &&
+                                selectedCard!.rank == 4 &&
+                                selectedMoveValue != null)
                               ElevatedButton(
                                 onPressed: _handlePlayCardButton,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.orange,
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 24, vertical: 12),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
@@ -497,7 +858,86 @@ class _DogBoardState extends State<DogBoard> {
                                   ),
                                 ),
                               )
-                            // Syvermodus: bekreft eller avbryt
+                            // Ace: choose between 1 and 11 when not leaving start
+                            else if (canPlayCard &&
+                                selectedCard != null &&
+                                selectedCard!.rank == 1 &&
+                                selectedPiece != null &&
+                                fields[selectedPiece!.fieldIndex].type != 'start' &&
+                                selectedMoveValue == null)
+                              Column(
+                                children: [
+                                  ElevatedButton(
+                                    onPressed: () => _handleMoveChoice(1),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16, vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      elevation: 5,
+                                    ),
+                                    child: Text(
+                                      '1 steg',
+                                      style: TextStyle(
+                                        fontSize: buttonFontSize,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ElevatedButton(
+                                    onPressed: () => _handleMoveChoice(11),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.deepOrange,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16, vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      elevation: 5,
+                                    ),
+                                    child: Text(
+                                      '11 steg',
+                                      style: TextStyle(
+                                        fontSize: buttonFontSize,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            // Ace: confirm after choosing value when not leaving start
+                            else if (canPlayCard &&
+                                selectedCard != null &&
+                                selectedCard!.rank == 1 &&
+                                selectedPiece != null &&
+                                fields[selectedPiece!.fieldIndex].type != 'start' &&
+                                selectedMoveValue != null)
+                              ElevatedButton(
+                                onPressed: _handlePlayCardButton,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 24, vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  elevation: 5,
+                                ),
+                                child: Text(
+                                  'Bekreft trekk',
+                                  style: TextStyle(
+                                    fontSize: buttonFontSize,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              )
+                            // Seven mode: confirm or cancel once all steps are allocated
                             else if (inSevenMode && remainingSevenSteps == 0)
                               Row(
                                 children: [
@@ -506,7 +946,8 @@ class _DogBoardState extends State<DogBoard> {
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.green,
                                       foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16, vertical: 12),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
                                       ),
@@ -523,7 +964,8 @@ class _DogBoardState extends State<DogBoard> {
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.red,
                                       foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16, vertical: 12),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
                                       ),
@@ -536,7 +978,7 @@ class _DogBoardState extends State<DogBoard> {
                                   ),
                                 ],
                               )
-                            // Vanlig spill-knapp
+                            // Standard "play card" button
                             else
                               Visibility(
                                 visible: canPlayCard && !inSevenMode,
@@ -545,7 +987,8 @@ class _DogBoardState extends State<DogBoard> {
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.orange,
                                     foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 24, vertical: 12),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(10),
                                     ),
@@ -560,6 +1003,7 @@ class _DogBoardState extends State<DogBoard> {
                                   ),
                                 ),
                               ),
+                            // "Pass turn" button if no moves
                             Visibility(
                               visible: isMyTurn && !canMove && !inSevenMode,
                               child: ElevatedButton(
@@ -567,7 +1011,8 @@ class _DogBoardState extends State<DogBoard> {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.grey[700],
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 24, vertical: 12),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
@@ -585,6 +1030,7 @@ class _DogBoardState extends State<DogBoard> {
                           ],
                         ),
                         const SizedBox(width: 20),
+                        // Draw pile and deck info
                         Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -681,11 +1127,12 @@ class _DogBoardState extends State<DogBoard> {
                       ],
                     ),
                     const SizedBox(height: 30),
+                    // Player's hand (my cards)
                     Column(
                       mainAxisSize: MainAxisSize.min,
                       children: List.generate(3, (row) {
                         int startIdx = row * 2;
-                        final hand = gameManager.playerHands[myPlayerNumber - 1];
+                        final hand = gameManager.handOf(myPlayerNumber);
                         return Padding(
                           padding: EdgeInsets.symmetric(vertical: handCardSpacing),
                           child: Row(
@@ -707,16 +1154,6 @@ class _DogBoardState extends State<DogBoard> {
                                 cursor: (isPlayable && selectedPiece != null)
                                     ? SystemMouseCursors.click
                                     : SystemMouseCursors.forbidden,
-                                onEnter: (_) {
-                                  setState(() {
-                                    hoveredCard = card;
-                                  });
-                                },
-                                onExit: (_) {
-                                  setState(() {
-                                    if (hoveredCard == card) hoveredCard = null;
-                                  });
-                                },
                                 child: GestureDetector(
                                   onTap: () {
                                     if (isPlayable && selectedPiece != null) {
@@ -736,18 +1173,12 @@ class _DogBoardState extends State<DogBoard> {
                                         decoration: BoxDecoration(
                                           color: isSelected
                                               ? Colors.orange
-                                              : (hoveredCard == card && isPlayable)
-                                                  ? hoverColor
-                                                  : Colors.white,
+                                              : (isPlayable ? hoverColor : Colors.white),
                                           border: Border.all(
                                             color: isSelected
                                                 ? Colors.orange
-                                                : (isPlayable
-                                                    ? Colors.green
-                                                    : Colors.black26),
-                                            width: isSelected
-                                                ? 3
-                                                : (isPlayable ? 2.3 : 1.5),
+                                                : (isPlayable ? Colors.green : Colors.black26),
+                                            width: isSelected ? 3 : (isPlayable ? 2.3 : 1.5),
                                           ),
                                           borderRadius: BorderRadius.circular(10),
                                           boxShadow: [
@@ -757,7 +1188,7 @@ class _DogBoardState extends State<DogBoard> {
                                                 blurRadius: 7,
                                                 offset: const Offset(0, 2),
                                               ),
-                                            if (hoveredCard == card && !isSelected && isPlayable)
+                                            if (!isSelected && isPlayable)
                                               BoxShadow(
                                                 color: playerColor.withAlpha(51),
                                                 blurRadius: 8,
@@ -791,7 +1222,7 @@ class _DogBoardState extends State<DogBoard> {
                   ],
                 ),
               ),
-              // Midten av Row: Spillbrettet og spillerboksene
+              // Board and player boxes
               Stack(
                 alignment: Alignment.center,
                 children: [
@@ -800,7 +1231,7 @@ class _DogBoardState extends State<DogBoard> {
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        // Brettet
+                        // Board border
                         Container(
                           width: boardSide,
                           height: boardSide,
@@ -813,7 +1244,7 @@ class _DogBoardState extends State<DogBoard> {
                             borderRadius: BorderRadius.circular(32),
                           ),
                         ),
-                        // FELTER
+                        // Fields
                         ...fields.asMap().entries.map((entry) {
                           final f = entry.value;
                           final pos = Offset(
@@ -827,8 +1258,7 @@ class _DogBoardState extends State<DogBoard> {
                           Color color;
                           if (f.type == 'immunity') {
                             color = Colors.black;
-                          } else if (f.type == 'goal' ||
-                              f.type == 'start') {
+                          } else if (f.type == 'goal' || f.type == 'start') {
                             color = playerStartColor[f.player] ?? Colors.green;
                           } else {
                             color = Colors.black;
@@ -915,7 +1345,57 @@ class _DogBoardState extends State<DogBoard> {
                             ),
                           );
                         }),
-                        // BRIKKER
+                        // Seven-mode overlays: selected and valid targets
+                        ...sevenSelectedTargets.map((idx) {
+                          final fSel = fields[idx];
+                          double overlaySize = baseFieldSize;
+                          if (fSel.type == 'immunity') overlaySize *= immunityMultiplier;
+                          if (fSel.type == 'start') overlaySize *= startMultiplier;
+                          final posSel = Offset(
+                            fSel.relPos.dx * boardSide,
+                            fSel.relPos.dy * boardSide,
+                          );
+                          return Positioned(
+                            left: posSel.dx - overlaySize / 2,
+                            top: posSel.dy - overlaySize / 2,
+                            child: Container(
+                              width: overlaySize,
+                              height: overlaySize,
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withAlpha(120),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          );
+                        }),
+                        ...sevenValidTargets.map((idx) {
+                          final fVal = fields[idx];
+                          double overlaySize = baseFieldSize;
+                          if (fVal.type == 'immunity') overlaySize *= immunityMultiplier;
+                          if (fVal.type == 'start') overlaySize *= startMultiplier;
+                          final posVal = Offset(
+                            fVal.relPos.dx * boardSide,
+                            fVal.relPos.dy * boardSide,
+                          );
+                          return Positioned(
+                            left: posVal.dx - overlaySize / 2,
+                            top: posVal.dy - overlaySize / 2,
+                            child: GestureDetector(
+                              onTap: () {
+                                _handleSevenFieldTap(idx);
+                              },
+                              child: Container(
+                                width: overlaySize,
+                                height: overlaySize,
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withAlpha(100),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                        // Pieces
                         ...gameManager.pieces.map((piece) {
                           final field = fields[piece.fieldIndex];
                           final pos = Offset(
@@ -926,19 +1406,24 @@ class _DogBoardState extends State<DogBoard> {
                           final bool isSelected = selectedPiece == piece;
                           final bool canMovePiece = movablePieces.contains(piece);
 
-                          // Outline-farge
+                          // Outline color
                           Color outlineColor;
                           if (isMine && canMovePiece && isMyTurn) {
-                            outlineColor = isSelected ? Colors.orange : Colors.green;
+                            outlineColor =
+                                isSelected ? Colors.orange : Colors.green;
                           } else if (!isMine) {
                             outlineColor = Colors.grey;
                           } else {
                             outlineColor = Colors.grey.shade300;
                           }
 
-                          // Hodeskalle-visning hvis brikke slås ut
+                          // Show skull if piece will be knocked out
                           bool showSkull = false;
-                          if (targetedEnemyPiece != null && piece == targetedEnemyPiece) {
+                          if (targetedEnemyPiece != null &&
+                              piece == targetedEnemyPiece) {
+                            showSkull = true;
+                          }
+                          if (inSevenMode && sevenTargetedPieces.contains(piece)) {
                             showSkull = true;
                           }
 
@@ -972,27 +1457,29 @@ class _DogBoardState extends State<DogBoard> {
                             );
                           }
 
-                          // Syvermodus: gjør brikker klikkbare for å velge syverdel
+                          // Make pieces tappable if they can move
                           if (inSevenMode && isMine && isMyTurn) {
                             pieceWidget = GestureDetector(
                               onTap: () => _handlePieceTap(piece),
                               child: pieceWidget,
                             );
-                          }
-                          // Vanlig: brikken kan flyttes
-                          else if (!inSevenMode && isMine && canMovePiece && isMyTurn && !showSkull) {
+                          } else if (!inSevenMode &&
+                              isMine &&
+                              canMovePiece &&
+                              isMyTurn &&
+                              !showSkull) {
                             pieceWidget = GestureDetector(
                               onTap: () => _handlePieceTap(piece),
                               child: pieceWidget,
                             );
                           }
-
                           return Positioned(
                             left: pos.dx - pieceSize / 2,
                             top: pos.dy - pieceSize / 2,
                             child: pieceWidget,
                           );
                         }),
+                        // Center "DOG" box
                         Transform.rotate(
                           angle: -getBoardRotation(myPlayerNumber),
                           child: CenterBox(width: boardSide * 0.25),
@@ -1000,7 +1487,7 @@ class _DogBoardState extends State<DogBoard> {
                       ],
                     ),
                   ),
-                  // Spillernes handbokser
+                  // Player hand boxes around the board
                   Positioned(
                     bottom: boxHeight * 0.2,
                     left: (boardSide - boxWidth) / 2,
@@ -1009,7 +1496,7 @@ class _DogBoardState extends State<DogBoard> {
                       width: boxWidth,
                       isMe: true,
                       isCurrentPlayer: gameManager.currentPlayer == boxOrder[0],
-                      hand: gameManager.playerHands[boxOrder[0] - 1],
+                      hand: gameManager.handOf(boxOrder[0]),
                     ),
                   ),
                   Positioned(
@@ -1021,7 +1508,7 @@ class _DogBoardState extends State<DogBoard> {
                         player: boxOrder[1],
                         width: boxWidth,
                         isCurrentPlayer: gameManager.currentPlayer == boxOrder[1],
-                        hand: gameManager.playerHands[boxOrder[1] - 1],
+                        hand: gameManager.handOf(boxOrder[1]),
                       ),
                     ),
                   ),
@@ -1029,12 +1516,12 @@ class _DogBoardState extends State<DogBoard> {
                     top: boxHeight * 0.2,
                     left: (boardSide - boxWidth) / 2,
                     child: Transform.rotate(
-                      angle: pi * 2,
+                      angle: 0,
                       child: PlayerHandBox(
                         player: boxOrder[2],
                         width: boxWidth,
                         isCurrentPlayer: gameManager.currentPlayer == boxOrder[2],
-                        hand: gameManager.playerHands[boxOrder[2] - 1],
+                        hand: gameManager.handOf(boxOrder[2]),
                       ),
                     ),
                   ),
@@ -1047,7 +1534,7 @@ class _DogBoardState extends State<DogBoard> {
                         player: boxOrder[3],
                         width: boxWidth,
                         isCurrentPlayer: gameManager.currentPlayer == boxOrder[3],
-                        hand: gameManager.playerHands[boxOrder[3] - 1],
+                        hand: gameManager.handOf(boxOrder[3]),
                       ),
                     ),
                   ),

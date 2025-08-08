@@ -1,9 +1,6 @@
-//lib\game_manager.dart
-
-
-import 'package:dog_game/dog_card.dart';
-import 'package:dog_game/models/piece.dart';
-import 'package:dog_game/models/field.dart';
+import '../dog_card.dart';
+import '../models/piece.dart';
+import '../models/field.dart';
 
 class Move {
   final DogPiece piece;
@@ -13,7 +10,6 @@ class Move {
   Move({required this.piece, required this.card, required this.moveValue});
 }
 
-/// Ny klasse: Et syver-trekk består av flere deltrekk (eks: 4 steg med en brikke, 3 med en annen)
 class SevenMoveStep {
   final DogPiece piece;
   final int fromIndex;
@@ -28,211 +24,46 @@ class SevenMoveStep {
 }
 
 class GameManager {
-  int currentPlayer = 1; // 1–4, hvem sin tur
+  int currentPlayer = 1; // 1–4
   List<DogPiece> pieces = [];
-  List<List<DogCard>> playerHands = [[], [], [], []]; // 0=spiller1
+  List<List<DogCard>> playerHands = [[], [], [], []];
   List<DogCard> deck = [];
   List<DogCard> discardPile = [];
   List<Field> fields = [];
   int round = 1;
 
-  static const int cardsPerPlayer = 6;
-
   GameManager({required this.fields}) {
     setupNewGame();
   }
 
+  int getCardsToDeal() {
+    return 6 - ((round - 1) % 5);
+  }
+
   void setupNewGame() {
-    // Sett ut brikker i startområdene
+    // Sett ut brikker i start
     pieces = [];
     for (int p = 1; p <= 4; p++) {
       final playerStartIndices = fields.asMap().entries
-          .where((entry) => entry.value.type == 'start' && entry.value.player == p)
+          .where((entry) =>
+              entry.value.type == 'start' && entry.value.player == p)
           .map((entry) => entry.key)
           .toList();
       for (final idx in playerStartIndices) {
         pieces.add(DogPiece(player: p, fieldIndex: idx));
       }
     }
-    // Lag og del ut kort
     deck = buildDogDeck();
     deck.shuffle();
     playerHands = [[], [], [], []];
-    for (int i = 0; i < cardsPerPlayer; i++) {
-      for (int p = 0; p < 4; p++) {
-        playerHands[p].add(deck.removeLast());
-      }
-    }
     discardPile = [];
-    currentPlayer = 1;
     round = 1;
-  }
-
-  /// Standard flytt sjekk for ett enkelt steg
-  bool canPieceMoveWithValue(DogPiece piece, DogCard card, int moveValue) {
-    final field = fields[piece.fieldIndex];
-
-    if (field.type == 'start') {
-      if (card.rank == 1 || card.rank == 13 || card.suit == Suit.joker) {
-        final int boardMainFieldIndex = fields.asMap().entries
-            .firstWhere((entry) => entry.value.player == piece.player && entry.value.type == 'immunity')
-            .key;
-        // Sjekk om startfeltet er ledig
-        return !pieces.any((p) => p.fieldIndex == boardMainFieldIndex);
-      }
-      return false;
-    }
-
-    int boardSize = 64;
-    int newFieldIndex = (piece.fieldIndex + moveValue);
-    if (newFieldIndex >= boardSize) {
-      newFieldIndex = newFieldIndex % boardSize;
-    } else if (newFieldIndex < 0) {
-      newFieldIndex = boardSize + newFieldIndex;
-    }
-
-    final occupyingPiece = pieces.firstWhere(
-      (p) => p.fieldIndex == newFieldIndex,
-      orElse: () => DogPiece(player: -1, fieldIndex: -1),
-    );
-    return occupyingPiece.player == -1 || occupyingPiece.player != piece.player;
-  }
-  /// Spiller et kort og flytter en brikke – STANDARD (ikke syver)
-  /// Returnerer true ved vellykket trekk, false ved ugyldig trekk
-  bool playCard(int player, DogCard card, DogPiece piece, int moveValue) {
-    if (player != currentPlayer) return false;
-    if (!playerHands[player - 1].contains(card)) return false;
-
-    final field = fields[piece.fieldIndex];
-
-    // Sjekker om brikken skal flyttes fra startområdet
-    if (field.type == 'start') {
-      if (card.rank == 1 || card.rank == 13 || card.suit == Suit.joker) {
-        final int boardMainFieldIndex = fields.asMap().entries
-            .firstWhere((entry) => entry.value.player == player && entry.value.type == 'immunity')
-            .key;
-        if (!pieces.any((p) => p.fieldIndex == boardMainFieldIndex)) {
-          piece.fieldIndex = boardMainFieldIndex;
-        } else {
-          return false;
-        }
-      } else {
-        return false;
-      }
-    } else {
-      int boardSize = 64;
-      int newFieldIndex = (piece.fieldIndex + moveValue);
-      if (newFieldIndex >= boardSize) {
-        newFieldIndex = newFieldIndex % boardSize;
-      } else if (newFieldIndex < 0) {
-        newFieldIndex = boardSize + newFieldIndex;
-      }
-
-      // Sjekk om det nye feltet er opptatt
-      final occupyingPiece = pieces.firstWhere(
-        (p) => p.fieldIndex == newFieldIndex,
-        orElse: () => DogPiece(player: -1, fieldIndex: -1),
-      );
-      if (occupyingPiece.player != -1) {
-        if (occupyingPiece.player == player) {
-          // Kan ikke lande på egen brikke
-          return false;
-        } else {
-          _sendPieceBackToStart(occupyingPiece);
-        }
-      }
-
-      // Flytt brikken
-      piece.fieldIndex = newFieldIndex;
-    }
-
-    // Fjern kortet og bytt tur
-    playerHands[player - 1].remove(card);
-    discardPile.add(card);
-    passTurn();
-    return true;
-  }
-
-  /// Ny! Utfører et "syver-trekk", med liste av steg
-  /// Returnerer true ved suksess, false ved ugyldig trekk
-  bool playSevenCard(int player, DogCard card, List<SevenMoveStep> steps) {
-    if (player != currentPlayer) return false;
-    if (!playerHands[player - 1].contains(card)) return false;
-    if (card.rank != 7) return false;
-    int sum = steps.fold(0, (prev, s) => prev + s.steps.abs());
-    if (sum != 7) return false;
-
-    // Brukes for å holde styr på midlertidig board-tilstand under utførelse
-    final usedPieces = <DogPiece, int>{};
-
-    // Valider alle steg først: (må ikke lande på egen brikke, ikke gå over mål osv.)
-    for (final step in steps) {
-      // Finn startposisjon for denne brikken
-      int fromIdx = usedPieces[step.piece] ?? step.piece.fieldIndex;
-      int toIdx = fromIdx + step.steps;
-
-      // Board wrap
-      if (toIdx >= 64) toIdx = toIdx % 64;
-      if (toIdx < 0) toIdx = 64 + toIdx;
-
-      // Kan ikke lande på egen brikke
-      final occupying = pieces.firstWhere(
-        (p) => p.fieldIndex == toIdx,
-        orElse: () => DogPiece(player: -1, fieldIndex: -1),
-      );
-      if (occupying.player == player) return false;
-
-      // Oppdater for neste steg med samme brikke
-      usedPieces[step.piece] = toIdx;
-    }
-
-    // Utfør stegene, slå ut fiender
-    for (final step in steps) {
-      int fromIdx = step.piece.fieldIndex;
-      int toIdx = fromIdx + step.steps;
-      if (toIdx >= 64) toIdx = toIdx % 64;
-      if (toIdx < 0) toIdx = 64 + toIdx;
-
-      final occupying = pieces.firstWhere(
-        (p) => p.fieldIndex == toIdx,
-        orElse: () => DogPiece(player: -1, fieldIndex: -1),
-      );
-      if (occupying.player != -1 && occupying.player != player) {
-        _sendPieceBackToStart(occupying);
-      }
-      step.piece.fieldIndex = toIdx;
-    }
-
-    // Fjern kortet og bytt tur
-    playerHands[player - 1].remove(card);
-    discardPile.add(card);
-    passTurn();
-    return true;
-  }
-
-  // Sender en brikke tilbake til et ledig startfelt
-  void _sendPieceBackToStart(DogPiece piece) {
-    final playerStartIndices = fields.asMap().entries
-        .where((entry) => entry.value.type == 'start' && entry.value.player == piece.player)
-        .map((entry) => entry.key)
-        .toList();
-
-    // Finn første ledige startfelt
-    for (final startIdx in playerStartIndices) {
-      if (!pieces.any((p) => p.fieldIndex == startIdx)) {
-        piece.fieldIndex = startIdx;
-        return;
-      }
-    }
-    // Hvis ingen startfelt er ledige, skjer ingenting
-  }
-
-  void passTurn() {
-    currentPlayer = (currentPlayer % 4) + 1;
+    dealNewRound();
   }
 
   void dealNewRound() {
-    if (deck.length < cardsPerPlayer * 4) {
+    final int cardsToDeal = getCardsToDeal();
+    if (deck.length < cardsToDeal * 4) {
       deck.addAll(discardPile);
       discardPile.clear();
       deck.shuffle();
@@ -240,54 +71,96 @@ class GameManager {
     for (int p = 0; p < 4; p++) {
       playerHands[p].clear();
     }
-    for (int i = 0; i < cardsPerPlayer; i++) {
+    for (int i = 0; i < cardsToDeal; i++) {
       for (int p = 0; p < 4; p++) {
         playerHands[p].add(deck.removeLast());
       }
     }
+    currentPlayer = ((round - 1) % 4) + 1;
     round++;
-    currentPlayer = 1;
   }
 
-  List<DogCard> handOf(int player) => playerHands[player - 1];
-  List<DogPiece> piecesOf(int player) =>
-      pieces.where((p) => p.player == player).toList();
-  Field fieldOfPiece(DogPiece piece) => fields[piece.fieldIndex];
-  bool isRoundOver() => playerHands.every((h) => h.isEmpty);
+  bool canPieceMoveWithValue(DogPiece piece, DogCard card, int moveValue) {
+    final field = fields[piece.fieldIndex];
 
-  bool canPieceMove(DogPiece piece, DogCard card) {
-    if (fields[piece.fieldIndex].type == 'start') {
+    if (field.type == 'start') {
       if (card.rank == 1 || card.rank == 13 || card.suit == Suit.joker) {
         final int boardMainFieldIndex = fields.asMap().entries
-            .firstWhere((entry) => entry.value.player == piece.player && entry.value.type == 'immunity')
+            .firstWhere((entry) =>
+                entry.value.player == piece.player &&
+                entry.value.type == 'immunity')
             .key;
-        // Sjekk om startfeltet er ledig
         return !pieces.any((p) => p.fieldIndex == boardMainFieldIndex);
       }
       return false;
     }
 
-    int moveValue = card.rank ?? 0;
-if (card.rank == 4) {
-  moveValue = -4;
-} else if (card.rank == 7) {
-  moveValue = 7;
-}
+    int boardSize = 64;
+    int direction = moveValue >= 0 ? 1 : -1;
+    int steps = moveValue.abs();
+    int fromIndex = piece.fieldIndex;
+    for (int i = 1; i <= steps; i++) {
+      int pos = (fromIndex + direction * i) % boardSize;
+      if (pos < 0) pos += boardSize;
+      final occupier = pieces.firstWhere(
+        (p) => p.fieldIndex == pos,
+        orElse: () => DogPiece(player: -1, fieldIndex: -1),
+      );
+      if (i < steps) {
+        if (occupier.player == piece.player && occupier.player != -1) {
+          return false;
+        }
+        if (occupier.player != -1 &&
+            occupier.player != piece.player &&
+            occupier.isImmune) {
+          return false;
+        }
+      }
+      if (i == steps) {
+        if (occupier.player == piece.player) {
+          return false;
+        }
+        if (occupier.player != -1 && occupier.isImmune) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
 
+  bool canPieceMove(DogPiece piece, DogCard card) {
+    final field = fields[piece.fieldIndex];
 
-    final int boardSize = 64;
-    int newFieldIndex = (piece.fieldIndex + moveValue);
-    if (newFieldIndex >= boardSize) {
-      newFieldIndex = newFieldIndex % boardSize;
-    } else if (newFieldIndex < 0) {
-      newFieldIndex = boardSize + newFieldIndex;
+    if (field.type == 'start') {
+      if (card.rank == 1 || card.rank == 13 || card.suit == Suit.joker) {
+        final int boardMainFieldIndex = fields.asMap().entries
+            .firstWhere((entry) =>
+                entry.value.player == piece.player &&
+                entry.value.type == 'immunity')
+            .key;
+        return !pieces.any((p) => p.fieldIndex == boardMainFieldIndex);
+      }
+      return false;
     }
 
-    final occupyingPiece = pieces.firstWhere(
-      (p) => p.fieldIndex == newFieldIndex,
-      orElse: () => DogPiece(player: -1, fieldIndex: -1),
-    );
-    return occupyingPiece.player == -1 || occupyingPiece.player != piece.player;
+    List<int> possibleMoves = [];
+    if (card.suit == Suit.joker) {
+      possibleMoves = [4, -4, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+    } else if (card.rank == 1) {
+      possibleMoves = [1, 11];
+    } else if (card.rank == 4) {
+      possibleMoves = [4, -4];
+    } else if (card.rank == 7) {
+      possibleMoves = [1, 2, 3, 4, 5, 6, 7];
+    } else {
+      if (card.rank != null) {
+        possibleMoves = [card.rank!];
+      }
+    }
+    for (final mv in possibleMoves) {
+      if (canPieceMoveWithValue(piece, card, mv)) return true;
+    }
+    return false;
   }
 
   bool hasPossibleMoves(int player) {
@@ -310,24 +183,252 @@ if (card.rank == 4) {
 
     for (final piece in playerPieces) {
       for (final card in playerHand) {
-        if (card.rank == 4) {
-          // Kan flytte 4 fremover
-          if (canPieceMoveWithValue(piece, card, 4)) {
-            possibleMoves.add(Move(piece: piece, card: card, moveValue: 4));
+        if (card.suit == Suit.joker) {
+          final values = [
+            4,
+            -4,
+            1,
+            2,
+            3,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ];
+          for (final v in values) {
+            if (canPieceMoveWithValue(piece, card, v)) {
+              possibleMoves
+                  .add(Move(piece: piece, card: card, moveValue: v));
+            }
           }
-          // Kan flytte 4 bakover
+        } else if (card.rank == 1) {
+          if (canPieceMoveWithValue(piece, card, 1)) {
+            possibleMoves
+                .add(Move(piece: piece, card: card, moveValue: 1));
+          }
+          if (canPieceMoveWithValue(piece, card, 11)) {
+            possibleMoves
+                .add(Move(piece: piece, card: card, moveValue: 11));
+          }
+        } else if (card.rank == 4) {
+          if (canPieceMoveWithValue(piece, card, 4)) {
+            possibleMoves
+                .add(Move(piece: piece, card: card, moveValue: 4));
+          }
           if (canPieceMoveWithValue(piece, card, -4)) {
-            possibleMoves.add(Move(piece: piece, card: card, moveValue: -4));
+            possibleMoves
+                .add(Move(piece: piece, card: card, moveValue: -4));
+          }
+        } else if (card.rank == 7) {
+          bool canSeven = false;
+          for (int i = 1; i <= 7; i++) {
+            if (canPieceMoveWithValue(piece, card, i)) {
+              canSeven = true;
+              break;
+            }
+          }
+          if (canSeven) {
+            possibleMoves.add(
+                Move(piece: piece, card: card, moveValue: 7));
           }
         } else {
-          int value = card.rank ?? 0;
-          if (card.rank == 7) value = 7; // NB: syver-variant (må håndteres med playSevenCard)
-          if (canPieceMoveWithValue(piece, card, value)) {
-            possibleMoves.add(Move(piece: piece, card: card, moveValue: value));
+          final int value = card.rank ?? 0;
+          if (value != 0 &&
+              canPieceMoveWithValue(piece, card, value)) {
+            possibleMoves
+                .add(Move(piece: piece, card: card, moveValue: value));
           }
         }
       }
     }
     return possibleMoves;
+  }
+
+  List<DogCard> handOf(int player) => playerHands[player - 1];
+  List<DogPiece> piecesOf(int player) =>
+      pieces.where((p) => p.player == player).toList();
+  Field fieldOfPiece(DogPiece piece) => fields[piece.fieldIndex];
+
+  bool playCard(int player, DogCard card, DogPiece piece, int moveValue) {
+    if (player != currentPlayer) return false;
+    if (!playerHands[player - 1].contains(card)) return false;
+
+    final field = fields[piece.fieldIndex];
+
+    // From start
+    if (field.type == 'start') {
+      if (card.rank == 1 || card.rank == 13 || card.suit == Suit.joker) {
+        final int boardMainFieldIndex = fields.asMap().entries
+            .firstWhere((entry) =>
+                entry.value.player == player &&
+                entry.value.type == 'immunity')
+            .key;
+        if (pieces.any((p) => p.fieldIndex == boardMainFieldIndex)) {
+          return false;
+        }
+        piece.fieldIndex = boardMainFieldIndex;
+        piece.isImmune = true;
+      } else {
+        return false;
+      }
+    } else {
+      int boardSize = 64;
+      int direction = moveValue >= 0 ? 1 : -1;
+      int steps = moveValue.abs();
+      int fromIndex = piece.fieldIndex;
+      for (int i = 1; i <= steps; i++) {
+        int pos = (fromIndex + direction * i) % boardSize;
+        if (pos < 0) pos += boardSize;
+        final occupier = pieces.firstWhere(
+          (p) => p.fieldIndex == pos,
+          orElse: () => DogPiece(player: -1, fieldIndex: -1),
+        );
+        if (i < steps) {
+          if (occupier.player == player && occupier.player != -1) {
+            return false;
+          }
+          if (occupier.player != -1 &&
+              occupier.player != player &&
+              occupier.isImmune) {
+            return false;
+          }
+        }
+        if (i == steps) {
+          if (occupier.player == player) {
+            return false;
+          }
+          if (occupier.player != -1 && occupier.isImmune) {
+            return false;
+          }
+          if (occupier.player != -1) {
+            _sendPieceBackToStart(occupier);
+          }
+        }
+      }
+      piece.fieldIndex = (piece.fieldIndex + moveValue) % boardSize;
+      if (piece.fieldIndex < 0) piece.fieldIndex += boardSize;
+      piece.isImmune = false;
+    }
+
+    playerHands[player - 1].remove(card);
+    discardPile.add(card);
+    currentPlayer = (currentPlayer % 4) + 1;
+    return true;
+  }
+
+  bool playSevenCard(int player, DogCard card, List<SevenMoveStep> steps) {
+    if (player != currentPlayer) return false;
+    if (!playerHands[player - 1].contains(card)) return false;
+    if (card.rank != 7 && card.suit != Suit.joker) return false;
+
+    int sum = steps.fold(0, (prev, s) => prev + s.steps.abs());
+    if (sum != 7) return false;
+    // Cannot leave start with a seven card
+    for (final step in steps) {
+      if (fields[step.piece.fieldIndex].type == 'start') {
+        return false;
+      }
+    }
+    final Map<DogPiece, int> positions = {
+      for (final p in pieces) p: p.fieldIndex
+    };
+    for (final step in steps) {
+      final DogPiece piece = step.piece;
+      int from = positions[piece]!;
+      int boardSize = 64;
+      int direction = step.steps >= 0 ? 1 : -1;
+      int stepsCount = step.steps.abs();
+      for (int i = 1; i <= stepsCount; i++) {
+        int pos = (from + direction * i) % boardSize;
+        if (pos < 0) pos += boardSize;
+        final occupantEntry = positions.entries.firstWhere(
+          (e) => e.value == pos,
+          orElse: () => MapEntry(DogPiece(player: -1, fieldIndex: -1), -1),
+        );
+        final occupant = occupantEntry.key;
+        if (i < stepsCount) {
+          if (occupant.player == player && occupant.player != -1) {
+            return false;
+          }
+          if (occupant.player != -1 && occupant.isImmune) {
+            return false;
+          }
+        }
+        if (i == stepsCount) {
+          if (occupant.player == player) {
+            return false;
+          }
+          if (occupant.player != -1 && occupant.isImmune) {
+            return false;
+          }
+        }
+      }
+      int toIdx = from + step.steps;
+      toIdx %= boardSize;
+      if (toIdx < 0) toIdx += boardSize;
+      positions[piece] = toIdx;
+    }
+
+    final Set<DogPiece> toSendHome = {};
+    for (final step in steps) {
+      final DogPiece piece = step.piece;
+      int from = piece.fieldIndex;
+      int boardSize = 64;
+      int direction = step.steps >= 0 ? 1 : -1;
+      int stepsCount = step.steps.abs();
+      for (int i = 1; i <= stepsCount; i++) {
+        int pos = (from + direction * i) % boardSize;
+        if (pos < 0) pos += boardSize;
+        final occupant = pieces.firstWhere(
+          (p) => p.fieldIndex == pos,
+          orElse: () => DogPiece(player: -1, fieldIndex: -1),
+        );
+        if (occupant.player != -1 && !occupant.isImmune) {
+          final partner = ((player + 1) % 4) + 1;
+          if (occupant.player != player && occupant.player != partner) {
+            toSendHome.add(occupant);
+          }
+        }
+      }
+      piece.fieldIndex = positions[piece]!;
+      piece.isImmune = false;
+    }
+    for (final p in toSendHome) {
+      _sendPieceBackToStart(p);
+    }
+    playerHands[player - 1].remove(card);
+    discardPile.add(card);
+    currentPlayer = (currentPlayer % 4) + 1;
+    return true;
+  }
+
+  void _sendPieceBackToStart(DogPiece piece) {
+    final playerStartIndices = fields.asMap().entries
+        .where((entry) =>
+            entry.value.type == 'start' && entry.value.player == piece.player)
+        .map((entry) => entry.key)
+        .toList();
+    for (final idx in playerStartIndices) {
+      if (!pieces.any((p) => p.fieldIndex == idx)) {
+        piece.fieldIndex = idx;
+        piece.isImmune = false;
+        return;
+      }
+    }
+  }
+
+  List<DogCard> handOf(int player) => playerHands[player - 1];
+  List<DogPiece> piecesOf(int player) =>
+      pieces.where((p) => p.player == player).toList();
+  Field fieldOfPiece(DogPiece piece) => fields[piece.fieldIndex];
+
+  /// Added method (missing earlier): advances the turn to the next player.
+  void passTurn() {
+    currentPlayer = (currentPlayer % 4) + 1;
   }
 }
